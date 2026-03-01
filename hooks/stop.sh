@@ -15,9 +15,8 @@ git rev-parse --is-inside-work-tree &>/dev/null || exit 0
 
 # --- 커밋 필요 여부 ---
 NEED_COMMIT=false
-CHANGED=$(git diff --name-only 2>/dev/null; git diff --cached --name-only 2>/dev/null; git ls-files --others --exclude-standard 2>/dev/null)
-NON_WORKLOG=$(echo "$CHANGED" | grep -v '\.worklogs/' | grep -v '^$')
-[ -n "$NON_WORKLOG" ] && NEED_COMMIT=true
+CHANGED=$(git diff --name-only 2>/dev/null; git diff --cached --name-only 2>/dev/null; git ls-files --others --exclude-standard 2>/dev/null | grep -v '^$')
+[ -n "$CHANGED" ] && NEED_COMMIT=true
 
 # --- block 메시지 결정 ---
 if [ "$NEED_COMMIT" = "true" ]; then
