@@ -233,7 +233,26 @@ if target_date:
         print(f"ERROR: {target_date}.md 파일 없음", file=sys.stderr)
         sys.exit(1)
 
-total, success, failed = 0, 0, 0
+# ── 중복 방지: .migrated 파일로 이미 전송한 항목 fingerprint 관리 ──
+migrated_file = os.path.join(worklogs_dir, '.migrated')
+
+def load_migrated():
+    if not os.path.exists(migrated_file):
+        return set()
+    with open(migrated_file, encoding='utf-8') as f:
+        return set(line.strip() for line in f if line.strip())
+
+def save_migrated(fp, migrated_set):
+    migrated_set.add(fp)
+    with open(migrated_file, 'a', encoding='utf-8') as f:
+        f.write(fp + '\n')
+
+def fingerprint(e):
+    return f"{e['date']}|{e['time']}|{e['title']}"
+
+migrated = load_migrated()
+
+total, success, failed, skipped = 0, 0, 0, 0
 deleted_files = []
 
 env = {**os.environ, 'NOTION_TOKEN': notion_token, 'NOTION_DB_ID': notion_db_id}
@@ -248,6 +267,14 @@ for filename in md_files:
         # 내용 없는 항목 스킵 (title이 "YYYY-MM-DD HH:MM" 패턴 = 내용 없음)
         if re.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$', e['title']):
             print(f"  ⏭  [{e['time']}] (내용 없음, 스킵)")
+            continue
+
+        fp = fingerprint(e)
+
+        # 이미 마이그레이션된 항목 스킵
+        if fp in migrated:
+            print(f"  ↩  [{e['time']}] (이미 전송됨, 스킵) {e['title'][:50]}")
+            skipped += 1
             continue
 
         total += 1
@@ -272,6 +299,7 @@ for filename in md_files:
         )
         if result.returncode == 0:
             print(f"  ✅ {label}")
+            save_migrated(fp, migrated)
             success += 1
         else:
             print(f"  ❌ {label}")
@@ -287,7 +315,8 @@ for filename in md_files:
 
 tag = "[DRY RUN] " if dry_run else ""
 fail_str = f", {failed} 실패" if failed else ""
-print(f"\n{tag}완료: {success}/{total} 처리됨{fail_str}")
+skip_str = f", {skipped} 스킵(중복)" if skipped else ""
+print(f"\n{tag}완료: {success}/{total} 처리됨{fail_str}{skip_str}")
 
 if delete_after and deleted_files:
     print(f"삭제된 파일 ({len(deleted_files)}개): {', '.join(deleted_files)}")
