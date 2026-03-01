@@ -95,8 +95,6 @@ The installer adds these Claude Code hooks:
 | Event | Hook | Description |
 |-------|------|-------------|
 | `PostToolUse` | `worklog.sh` | Collects tool usage per session |
-| `Stop` | `stop.sh` | Prompts for worklog before session end |
-| `SessionEnd` | `session-end.sh` | Cleans up collection files |
 
 ## Worklog format
 
