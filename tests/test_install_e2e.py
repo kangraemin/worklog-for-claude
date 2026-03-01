@@ -31,8 +31,6 @@ EXPECTED_FILES = [
     "scripts/notion-migrate-worklogs.sh",
     "scripts/duration.py",
     "hooks/worklog.sh",
-    "hooks/session-end.sh",
-    "hooks/stop.sh",
     "commands/worklog.md",
     "commands/migrate-worklogs.md",
     "rules/worklog-rules.md",
@@ -43,8 +41,6 @@ EXPECTED_EXEC = [
     "scripts/notion-worklog.sh",
     "scripts/notion-migrate-worklogs.sh",
     "hooks/worklog.sh",
-    "hooks/session-end.sh",
-    "hooks/stop.sh",
 ]
 
 
@@ -164,11 +160,10 @@ class TestFreshGitInstall(_Base):
         actual = os.path.realpath(self._settings()["env"]["AI_WORKLOG_DIR"])
         self.assertEqual(actual, expected)
 
-    def test_three_hook_events_added(self):
+    def test_posttooluse_hook_added(self):
         self._run(self._BASE)
         hooks = self._settings().get("hooks", {})
-        for ev in ["PostToolUse", "Stop", "SessionEnd"]:
-            self.assertIn(ev, hooks, f"{ev} 훅 없음")
+        self.assertIn("PostToolUse", hooks)
 
     def test_settings_json_is_valid(self):
         self._run(self._BASE)
@@ -257,9 +252,7 @@ class TestFreshNotionInstallWithCreds(_Base):
 
     def test_hooks_added(self):
         self._run(["1", "1", "1"])
-        hooks = self._settings().get("hooks", {})
-        for ev in ["PostToolUse", "Stop", "SessionEnd"]:
-            self.assertIn(ev, hooks)
+        self.assertIn("PostToolUse", self._settings().get("hooks", {}))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -285,9 +278,7 @@ class TestNotionInstallNoToken(_Base):
 
     def test_hooks_added_without_token(self):
         self._run(["1", "2", "", "1"])
-        hooks = self._settings().get("hooks", {})
-        for ev in ["PostToolUse", "Stop", "SessionEnd"]:
-            self.assertIn(ev, hooks)
+        self.assertIn("PostToolUse", self._settings().get("hooks", {}))
 
     def test_no_token_in_env_file(self):
         """토큰 없으면 .env 에 NOTION_TOKEN 이 기록되지 않음"""
@@ -321,8 +312,6 @@ class TestReinstall(_Base):
             "env": env,
             "hooks": {
                 "PostToolUse": [{"hooks": [{"type": "command", "command": f"{d}/hooks/worklog.sh", "timeout": 5, "async": True}]}],
-                "Stop": [{"hooks": [{"type": "command", "command": f"{d}/hooks/stop.sh", "timeout": 30}]}],
-                "SessionEnd": [{"hooks": [{"type": "command", "command": f"{d}/hooks/session-end.sh", "timeout": 15}]}],
             },
         }
         if extra_hooks:
@@ -335,9 +324,8 @@ class TestReinstall(_Base):
         self._seed_settings()
         self._run(["1", "3", "1", "1"])
         cfg = self._settings()
-        for ev in ["PostToolUse", "Stop", "SessionEnd"]:
-            cmds = [c for c in self._hook_commands(cfg, ev) if "hooks/" in c]
-            self.assertEqual(len(cmds), 1, f"{ev}: 중복 훅 발견 {cmds}")
+        cmds = [c for c in self._hook_commands(cfg, "PostToolUse") if "hooks/" in c]
+        self.assertEqual(len(cmds), 1, f"중복 훅 발견: {cmds}")
 
     def test_unrelated_env_keys_preserved(self):
         """worklog 와 무관한 env 키는 재설치 후에도 보존"""
@@ -452,41 +440,25 @@ class TestHookStructure(_Base):
     def test_posttooluse_is_async(self):
         h = self._find_hook(self._cfg, "PostToolUse", "worklog.sh")
         self.assertIsNotNone(h)
-        self.assertTrue(h.get("async"), "PostToolUse worklog.sh 는 async=True 여야 함")
-
-    def test_stop_not_async(self):
-        h = self._find_hook(self._cfg, "Stop", "stop.sh")
-        self.assertIsNotNone(h)
-        self.assertNotIn("async", h)
-
-    def test_session_end_not_async(self):
-        h = self._find_hook(self._cfg, "SessionEnd", "session-end.sh")
-        self.assertIsNotNone(h)
-        self.assertNotIn("async", h)
+        self.assertTrue(h.get("async"))
 
     def test_posttooluse_timeout_5(self):
         h = self._find_hook(self._cfg, "PostToolUse", "worklog.sh")
         self.assertEqual(h["timeout"], 5)
 
-    def test_stop_timeout_30(self):
-        h = self._find_hook(self._cfg, "Stop", "stop.sh")
-        self.assertEqual(h["timeout"], 30)
-
-    def test_session_end_timeout_15(self):
-        h = self._find_hook(self._cfg, "SessionEnd", "session-end.sh")
-        self.assertEqual(h["timeout"], 15)
-
     def test_hook_type_is_command(self):
-        for ev, fn in [("PostToolUse", "worklog.sh"), ("Stop", "stop.sh"), ("SessionEnd", "session-end.sh")]:
-            h = self._find_hook(self._cfg, ev, fn)
-            self.assertEqual(h["type"], "command", f"{ev} type 오류")
+        h = self._find_hook(self._cfg, "PostToolUse", "worklog.sh")
+        self.assertEqual(h["type"], "command")
 
-    def test_hook_commands_point_to_target_dir(self):
+    def test_hook_command_points_to_target_dir(self):
         real_target = os.path.realpath(self._target)
-        for ev, fn in [("PostToolUse", "worklog.sh"), ("Stop", "stop.sh"), ("SessionEnd", "session-end.sh")]:
-            h = self._find_hook(self._cfg, ev, fn)
-            real_cmd = os.path.realpath(h["command"])
-            self.assertTrue(real_cmd.startswith(real_target), f"{ev} command 경로 오류: {h['command']}")
+        h = self._find_hook(self._cfg, "PostToolUse", "worklog.sh")
+        self.assertTrue(os.path.realpath(h["command"]).startswith(real_target))
+
+    def test_stop_and_session_end_not_registered(self):
+        hooks = self._cfg.get("hooks", {})
+        self.assertNotIn("Stop", hooks)
+        self.assertNotIn("SessionEnd", hooks)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -579,11 +551,9 @@ class TestLocalScopeInstall(_Base):
         self._run(["2", "3", "1", "1"], cwd=self.tmp)
         cfg = self._settings()
         real_local = os.path.realpath(os.path.join(self.tmp, ".claude"))
-        for ev, fn in [("PostToolUse", "worklog.sh"), ("Stop", "stop.sh"), ("SessionEnd", "session-end.sh")]:
-            h = self._find_hook(cfg, ev, fn)
-            self.assertIsNotNone(h, f"{ev}/{fn} 훅 없음")
-            real_cmd = os.path.realpath(h["command"])
-            self.assertTrue(real_cmd.startswith(real_local), f"{ev} 경로 오류: {h['command']}")
+        h = self._find_hook(cfg, "PostToolUse", "worklog.sh")
+        self.assertIsNotNone(h, "PostToolUse/worklog.sh 훅 없음")
+        self.assertTrue(os.path.realpath(h["command"]).startswith(real_local))
 
     def test_gitignore_mode_adds_worklogs_entry(self):
         """git-ignore 모드: .gitignore 에 .worklogs/ 추가"""
