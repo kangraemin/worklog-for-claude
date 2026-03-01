@@ -15,7 +15,7 @@ git rev-parse --is-inside-work-tree &>/dev/null || exit 0
 
 WORKLOG_TIMING="${WORKLOG_TIMING:-each-commit}"
 WORKLOG_GIT_TRACK="${WORKLOG_GIT_TRACK:-true}"
-COMMIT_TIMING="${COMMIT_TIMING:-}"
+COMMIT_TIMING="${COMMIT_TIMING:-session-end}"
 
 # --- 커밋 필요 여부 ---
 NEED_COMMIT=false
