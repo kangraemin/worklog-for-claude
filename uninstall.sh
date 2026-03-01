@@ -77,6 +77,7 @@ with open(settings_file, encoding='utf-8') as f:
 hooks = cfg.get('hooks', {})
 worklog_commands = [
     f'{target_dir}/hooks/worklog.sh',
+    f'{target_dir}/hooks/session-end.sh',
 ]
 
 removed_hooks = []
@@ -135,6 +136,7 @@ remove_file "$TARGET_DIR/scripts/notion-worklog.sh"
 remove_file "$TARGET_DIR/scripts/notion-migrate-worklogs.sh"
 remove_file "$TARGET_DIR/scripts/duration.py"
 remove_file "$TARGET_DIR/hooks/worklog.sh"
+remove_file "$TARGET_DIR/hooks/session-end.sh"
 remove_file "$TARGET_DIR/commands/worklog.md"
 remove_file "$TARGET_DIR/commands/migrate-worklogs.md"
 remove_file "$TARGET_DIR/rules/worklog-rules.md"

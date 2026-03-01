@@ -31,6 +31,7 @@ EXPECTED_FILES = [
     "scripts/notion-migrate-worklogs.sh",
     "scripts/duration.py",
     "hooks/worklog.sh",
+    "hooks/session-end.sh",
     "commands/worklog.md",
     "commands/migrate-worklogs.md",
     "rules/worklog-rules.md",
@@ -41,6 +42,7 @@ EXPECTED_EXEC = [
     "scripts/notion-worklog.sh",
     "scripts/notion-migrate-worklogs.sh",
     "hooks/worklog.sh",
+    "hooks/session-end.sh",
 ]
 
 
@@ -455,10 +457,15 @@ class TestHookStructure(_Base):
         h = self._find_hook(self._cfg, "PostToolUse", "worklog.sh")
         self.assertTrue(os.path.realpath(h["command"]).startswith(real_target))
 
-    def test_stop_and_session_end_not_registered(self):
+    def test_stop_not_registered(self):
         hooks = self._cfg.get("hooks", {})
         self.assertNotIn("Stop", hooks)
-        self.assertNotIn("SessionEnd", hooks)
+
+    def test_session_end_registered(self):
+        hooks = self._cfg.get("hooks", {})
+        self.assertIn("SessionEnd", hooks)
+        h = self._find_hook(self._cfg, "SessionEnd", "session-end.sh")
+        self.assertIsNotNone(h)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

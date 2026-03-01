@@ -334,7 +334,8 @@ copy_file "$PACKAGE_DIR/scripts/notion-migrate-worklogs.sh" "$TARGET_DIR/scripts
 copy_file "$PACKAGE_DIR/scripts/duration.py"                "$TARGET_DIR/scripts/duration.py"
 
 # hooks (관리 블록만 교체)
-install_file "$PACKAGE_DIR/hooks/worklog.sh" "$TARGET_DIR/hooks/worklog.sh"
+install_file "$PACKAGE_DIR/hooks/worklog.sh"     "$TARGET_DIR/hooks/worklog.sh"
+install_file "$PACKAGE_DIR/hooks/session-end.sh" "$TARGET_DIR/hooks/session-end.sh"
 
 # commands (항상 덮어쓰기)
 copy_file "$PACKAGE_DIR/commands/worklog.md"          "$TARGET_DIR/commands/worklog.md"
@@ -347,6 +348,7 @@ copy_file "$PACKAGE_DIR/rules/worklog-rules.md" "$TARGET_DIR/rules/worklog-rules
 chmod +x "$TARGET_DIR/scripts/notion-worklog.sh"
 chmod +x "$TARGET_DIR/scripts/notion-migrate-worklogs.sh"
 chmod +x "$TARGET_DIR/hooks/worklog.sh"
+chmod +x "$TARGET_DIR/hooks/session-end.sh"
 
 # ── .env 설정 ────────────────────────────────────────────────────────────────
 if [ -n "$NOTION_TOKEN" ]; then
@@ -401,7 +403,8 @@ hooks = cfg.setdefault('hooks', {})
 
 # 훅 정의: (이벤트, command, timeout, async)
 hook_defs = [
-    ('PostToolUse', f'{target_dir}/hooks/worklog.sh', 5, True),
+    ('PostToolUse', f'{target_dir}/hooks/worklog.sh',     5, True),
+    ('SessionEnd',  f'{target_dir}/hooks/session-end.sh', 5, False),
 ]
 
 for event, command, timeout, is_async in hook_defs:
