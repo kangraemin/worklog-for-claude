@@ -105,7 +105,7 @@ for event in set(removed_hooks):
 
 # ── 환경변수 제거 ──
 env = cfg.get('env', {})
-remove_keys = ['WORKLOG_TIMING', 'WORKLOG_DEST', 'WORKLOG_GIT_TRACK', 'AI_WORKLOG_DIR']
+remove_keys = ['WORKLOG_TIMING', 'WORKLOG_DEST', 'WORKLOG_GIT_TRACK', 'WORKLOG_LANG', 'AI_WORKLOG_DIR']
 for key in remove_keys:
     if key in env:
         del env[key]

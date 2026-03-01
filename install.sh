@@ -22,8 +22,18 @@ header(){ echo -e "\n${BOLD}${CYAN}── $* ──${NC}\n"; }
 # ── 패키지 루트 감지 ─────────────────────────────────────────────────────────
 PACKAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# ── 언어 선택 / Language selection ───────────────────────────────────────────
+printf "Language / 언어:\n  1) 한국어\n  2) English\n\n"
+printf "Select / 선택 [1]: "
+read -r _LANG_CHOICE
+_LANG_CHOICE="${_LANG_CHOICE:-1}"
+[ "$_LANG_CHOICE" = "2" ] && WORKLOG_LANG="en" || WORKLOG_LANG="ko"
+
+# Bilingual text helper: t "한국어" "English"
+t() { [ "$WORKLOG_LANG" = "en" ] && echo "$2" || echo "$1"; }
+
 # ── 사전 조건 체크 ───────────────────────────────────────────────────────────
-header "사전 조건 체크"
+header "$(t '사전 조건 체크' 'Prerequisites')"
 
 check_cmd() {
   if command -v "$1" &>/dev/null; then
@@ -41,7 +51,7 @@ check_cmd "curl"    || MISSING+=("curl")
 check_cmd "jq"      || MISSING+=("jq")
 
 if [ ${#MISSING[@]} -gt 0 ]; then
-  err "필수 도구가 없습니다:"
+  err "$(t '필수 도구가 없습니다:' 'Required tools are missing:')"
   for m in "${MISSING[@]}"; do
     echo "   - $m"
   done
@@ -50,24 +60,24 @@ fi
 
 # ccusage는 선택
 if ! check_cmd "ccusage"; then
-  warn "ccusage가 없습니다 (토큰/비용 추적에 필요)"
-  echo -n "   npm install -g ccusage 로 설치하시겠습니까? [y/N] "
+  warn "$(t 'ccusage가 없습니다 (토큰/비용 추적에 필요)' 'ccusage not found (required for token/cost tracking)')"
+  printf "   $(t 'npm install -g ccusage 로 설치하시겠습니까?' 'Install via npm install -g ccusage?') [y/N] "
   read -r INSTALL_CCUSAGE
   if [[ "$INSTALL_CCUSAGE" =~ ^[yY]$ ]]; then
     npm install -g ccusage
-    ok "ccusage 설치 완료"
+    ok "$(t 'ccusage 설치 완료' 'ccusage installed')"
   else
-    warn "ccusage 없이 계속합니다 (토큰 추적 불가)"
+    warn "$(t 'ccusage 없이 계속합니다 (토큰 추적 불가)' 'Continuing without ccusage (token tracking disabled)')"
   fi
 fi
 
 # ── 설치 범위 ────────────────────────────────────────────────────────────────
-header "설치 범위"
+header "$(t '설치 범위' 'Installation Scope')"
 
-echo "  1) 전역 (~/.claude/) — 모든 프로젝트에 적용"
-echo "  2) 로컬 (.claude/)  — 현재 프로젝트에만 적용"
+echo "  1) $(t '전역 (~/.claude/) — 모든 프로젝트에 적용' 'Global (~/.claude/) — applies to all projects')"
+echo "  2) $(t '로컬 (.claude/)  — 현재 프로젝트에만 적용' 'Local (.claude/)   — current project only')"
 echo ""
-echo -n "선택 [1]: "
+printf "$(t '선택' 'Select') [1]: "
 read -r SCOPE_CHOICE
 SCOPE_CHOICE="${SCOPE_CHOICE:-1}"
 
@@ -79,17 +89,17 @@ else
   SCOPE="global"
 fi
 
-info "설치 대상: $TARGET_DIR"
+info "$(t '설치 대상' 'Install target'): $TARGET_DIR"
 mkdir -p "$TARGET_DIR"
 
 # ── 저장 방식 ────────────────────────────────────────────────────────────────
-header "워크로그 저장 방식"
+header "$(t '워크로그 저장 방식' 'Storage Mode')"
 
-echo "  1) Notion + 로컬 파일 (both)  — 추천"
-echo "  2) Notion만 (notion-only)"
-echo "  3) 로컬 파일만 (git)"
+echo "  1) $(t 'Notion + 로컬 파일 (both)  — 추천' 'Notion + local files (both)  — recommended')"
+echo "  2) $(t 'Notion만 (notion-only)' 'Notion only (notion-only)')"
+echo "  3) $(t '로컬 파일만 (git)' 'Local files only (git)')"
 echo ""
-echo -n "선택 [1]: "
+printf "$(t '선택' 'Select') [1]: "
 read -r DEST_CHOICE
 DEST_CHOICE="${DEST_CHOICE:-1}"
 
@@ -104,7 +114,7 @@ NOTION_TOKEN=""
 NOTION_DB_ID=""
 
 if [ "$WORKLOG_DEST" != "git" ]; then
-  header "Notion 설정"
+  header "$(t 'Notion 설정' 'Notion Setup')"
 
   # 기존 토큰 탐색
   NOTION_TOKEN="${NOTION_TOKEN:-}"
@@ -116,17 +126,17 @@ if [ "$WORKLOG_DEST" != "git" ]; then
   fi
 
   if [ -n "$NOTION_TOKEN" ]; then
-    ok "기존 NOTION_TOKEN 발견 — 재사용합니다."
+    ok "$(t '기존 NOTION_TOKEN 발견 — 재사용합니다.' 'Existing NOTION_TOKEN found — reusing.')"
   else
-    info "Notion Integration 토큰이 필요합니다."
-    info "https://www.notion.so/my-integrations 에서 생성하세요."
+    info "$(t 'Notion Integration 토큰이 필요합니다.' 'A Notion Integration token is required.')"
+    info "$(t 'https://www.notion.so/my-integrations 에서 생성하세요.' 'Create one at https://www.notion.so/my-integrations')"
     echo ""
-    echo -n "NOTION_TOKEN (빈 값이면 나중에 설정): "
+    printf "NOTION_TOKEN ($(t '빈 값이면 나중에 설정' 'leave blank to set later')): "
     read -r NOTION_TOKEN
   fi
 
   if [ -n "$NOTION_TOKEN" ]; then
-    ok "토큰 입력 완료"
+    ok "$(t '토큰 입력 완료' 'Token accepted')"
 
     # 기존 NOTION_DB_ID 탐색
     if [ -z "$NOTION_DB_ID" ]; then
@@ -146,14 +156,14 @@ for path in ['$TARGET_DIR/settings.json', os.path.expanduser('~/.claude/settings
     fi
 
     if [ -n "$NOTION_DB_ID" ]; then
-      ok "기존 NOTION_DB_ID 발견 — 재사용합니다: $NOTION_DB_ID"
+      ok "$(t '기존 NOTION_DB_ID 발견 — 재사용합니다' 'Existing NOTION_DB_ID found — reusing'): $NOTION_DB_ID"
     else
       # DB 자동 생성
       echo ""
-      info "워크로그 DB를 생성할 Notion 페이지 URL 또는 ID를 입력하세요."
-      info "예: https://notion.so/My-Page-abc123def456"
+      info "$(t '워크로그 DB를 생성할 Notion 페이지 URL 또는 ID를 입력하세요.' 'Enter the URL or ID of the Notion page where the worklog DB will be created.')"
+      info "$(t '예' 'e.g.'): https://notion.so/My-Page-abc123def456"
       echo ""
-      echo -n "부모 페이지 URL/ID: "
+      printf "$(t '부모 페이지 URL/ID' 'Parent page URL/ID'): "
       read -r PARENT_INPUT
 
       # URL에서 page_id 추출
@@ -165,7 +175,7 @@ print(m.group(1) if m else raw)
 ")
 
       if [ -n "$PARENT_ID" ]; then
-        info "DB 생성 중..."
+        info "$(t 'DB 생성 중...' 'Creating DB...')"
 
         DB_PAYLOAD=$(python3 -c "
 import json
@@ -202,33 +212,33 @@ print(json.dumps(data))
 
         if [ "$HTTP_CODE" = "200" ]; then
           NOTION_DB_ID=$(echo "$BODY" | jq -r '.id')
-          ok "DB 생성 완료: $NOTION_DB_ID"
+          ok "$(t 'DB 생성 완료' 'DB created'): $NOTION_DB_ID"
         else
-          err "DB 생성 실패 (HTTP $HTTP_CODE)"
+          err "$(t 'DB 생성 실패' 'DB creation failed') (HTTP $HTTP_CODE)"
           echo "$BODY" | jq -r '.message // .' 2>/dev/null || echo "$BODY"
           echo ""
-          echo -n "기존 NOTION_DB_ID를 직접 입력하시겠습니까? (빈 값이면 스킵): "
+          printf "$(t '기존 NOTION_DB_ID를 직접 입력하시겠습니까? (빈 값이면 스킵)' 'Enter an existing NOTION_DB_ID manually? (blank to skip)'): "
           read -r NOTION_DB_ID
         fi
       fi
     fi
   else
-    warn "Notion 토큰 없이 계속합니다."
-    info "나중에 다음 파일에 NOTION_TOKEN=<값> 을 추가하세요:"
+    warn "$(t 'Notion 토큰 없이 계속합니다.' 'Continuing without Notion token.')"
+    info "$(t '나중에 다음 파일에 NOTION_TOKEN=<값> 을 추가하세요:' 'Add NOTION_TOKEN=<value> to one of these files later:')"
     info "  1) $TARGET_DIR/.env"
     info "  2) $HOME/.claude/.env"
-    info "/worklog 실행 시 위 순서로 자동 탐색합니다."
+    info "$(t '/worklog 실행 시 위 순서로 자동 탐색합니다.' '/worklog will search them in this order.')"
   fi
 fi
 
 # ── git 추적 ─────────────────────────────────────────────────────────────────
 if [ "$WORKLOG_DEST" = "git" ]; then
-  header "Git 추적"
+  header "$(t 'Git 추적' 'Git Tracking')"
 
-  echo "  1) .worklogs/ 를 git에 추적 (기본)"
-  echo "  2) .worklogs/ 를 .gitignore에 추가"
+  echo "  1) $(t '.worklogs/ 를 git에 추적 (기본)' 'Track .worklogs/ in git (default)')"
+  echo "  2) $(t '.worklogs/ 를 .gitignore에 추가' 'Add .worklogs/ to .gitignore')"
   echo ""
-  echo -n "선택 [1]: "
+  printf "$(t '선택' 'Select') [1]: "
   read -r GIT_CHOICE
   GIT_CHOICE="${GIT_CHOICE:-1}"
 
@@ -240,13 +250,13 @@ if [ "$WORKLOG_DEST" = "git" ]; then
 fi
 
 # ── 작성 시점 ────────────────────────────────────────────────────────────────
-header "워크로그 작성 시점"
+header "$(t '워크로그 작성 시점' 'When to Write Worklogs')"
 
-echo "  1) each-commit — 커밋할 때마다 자동 (추천)"
-echo "  2) session-end — 세션 종료 시"
-echo "  3) manual      — /worklog 실행할 때만"
+echo "  1) each-commit — $(t '커밋할 때마다 자동 (추천)' 'automatically on each commit (recommended)')"
+echo "  2) session-end — $(t '세션 종료 시' 'at session end')"
+echo "  3) manual      — $(t '/worklog 실행할 때만' 'only when running /worklog')"
 echo ""
-echo -n "선택 [1]: "
+printf "$(t '선택' 'Select') [1]: "
 read -r TIMING_CHOICE
 TIMING_CHOICE="${TIMING_CHOICE:-1}"
 
@@ -257,7 +267,7 @@ case "$TIMING_CHOICE" in
 esac
 
 # ── 파일 복사 ────────────────────────────────────────────────────────────────
-header "파일 설치"
+header "$(t '파일 설치' 'Installing Files')"
 
 # 스크립트/문서: 항상 덮어쓰기 (패키지 관리 파일, 사용자 수정 X)
 copy_file() {
@@ -265,7 +275,7 @@ copy_file() {
   mkdir -p "$(dirname "$dst")"
   if [ -f "$dst" ]; then
     cp "$dst" "${dst}.bak"
-    warn "기존 파일 백업: ${dst}.bak"
+    warn "$(t '기존 파일 백업' 'Backed up existing file'): ${dst}.bak"
   fi
   cp "$src" "$dst"
   ok "$(basename "$dst")"
@@ -281,7 +291,7 @@ install_file() {
 
   if [ ! -f "$dst" ]; then
     cp "$src" "$dst"
-    ok "$(basename "$dst") (새로 설치)"
+    ok "$(basename "$dst") ($(t '새로 설치' 'new install'))"
     return
   fi
 
@@ -325,7 +335,7 @@ else:
 open(dst_path, 'w', encoding='utf-8').write(new_dst)
 PYEOF
 
-  ok "$(basename "$dst") (관리 블록 업데이트)"
+  ok "$(basename "$dst") ($(t '관리 블록 업데이트' 'managed block updated'))"
 }
 
 # scripts (항상 덮어쓰기)
@@ -365,15 +375,15 @@ if [ -n "$NOTION_TOKEN" ]; then
     echo "NOTION_TOKEN=$NOTION_TOKEN" > "$ENV_FILE"
   fi
   chmod 600 "$ENV_FILE"
-  ok ".env 설정 완료 (권한: 600)"
+  ok "$(t '.env 설정 완료 (권한: 600)' '.env configured (permissions: 600)')"
 fi
 
 # ── settings.json 훅 머지 ───────────────────────────────────────────────────
-header "settings.json 설정"
+header "$(t 'settings.json 설정' 'Updating settings.json')"
 
 SETTINGS_FILE="$TARGET_DIR/settings.json"
 
-python3 - "$SETTINGS_FILE" "$TARGET_DIR" "$WORKLOG_TIMING" "$WORKLOG_DEST" "$WORKLOG_GIT_TRACK" "${NOTION_DB_ID:-}" <<'PYEOF'
+python3 - "$SETTINGS_FILE" "$TARGET_DIR" "$WORKLOG_TIMING" "$WORKLOG_DEST" "$WORKLOG_GIT_TRACK" "${NOTION_DB_ID:-}" "$WORKLOG_LANG" <<'PYEOF'
 import json, sys, os
 
 settings_file = sys.argv[1]
@@ -382,6 +392,7 @@ timing        = sys.argv[3]
 dest          = sys.argv[4]
 git_track     = sys.argv[5]
 notion_db_id  = sys.argv[6]
+worklog_lang  = sys.argv[7]
 
 # 기존 설정 읽기
 cfg = {}
@@ -394,6 +405,7 @@ env = cfg.setdefault('env', {})
 env['WORKLOG_TIMING']    = timing
 env['WORKLOG_DEST']      = dest
 env['WORKLOG_GIT_TRACK'] = git_track
+env['WORKLOG_LANG']      = worklog_lang
 env['AI_WORKLOG_DIR']    = target_dir
 if notion_db_id:
     env['NOTION_DB_ID'] = notion_db_id
@@ -430,48 +442,49 @@ for event, command, timeout, is_async in hook_defs:
             new_hook['async'] = True
 
         event_hooks.append({'hooks': [new_hook]})
-        print(f'  ✓ {event} 훅 추가: {os.path.basename(command)}')
+        print(f'  ✓ {event} hook added: {os.path.basename(command)}')
     else:
-        print(f'  · {event} 훅 이미 존재: {os.path.basename(command)}')
+        print(f'  · {event} hook already exists: {os.path.basename(command)}')
 
 # 저장
 with open(settings_file, 'w', encoding='utf-8') as f:
     json.dump(cfg, f, indent=2, ensure_ascii=False)
     f.write('\n')
 
-print(f'\n  설정 저장: {settings_file}')
+print(f'\n  Saved: {settings_file}')
 PYEOF
 
-ok "settings.json 업데이트 완료"
+ok "$(t 'settings.json 업데이트 완료' 'settings.json updated')"
 
 # ── .gitignore에 .worklogs/ 추가 (git 미추적 모드) ──────────────────────────
 if [ "$WORKLOG_GIT_TRACK" = "false" ] && [ "$SCOPE" = "local" ]; then
   GITIGNORE="$(git rev-parse --show-toplevel 2>/dev/null)/.gitignore"
   if [ -n "$GITIGNORE" ] && ! grep -q "^\.worklogs/" "$GITIGNORE" 2>/dev/null; then
     echo ".worklogs/" >> "$GITIGNORE"
-    ok ".gitignore에 .worklogs/ 추가"
+    ok "$(t '.gitignore에 .worklogs/ 추가' 'Added .worklogs/ to .gitignore')"
   fi
 fi
 
 # ── 완료 ─────────────────────────────────────────────────────────────────────
-header "설치 완료"
+header "$(t '설치 완료' 'Installation Complete')"
 
-echo -e "  ${BOLD}설정 요약${NC}"
-echo "  ├─ 범위:     $SCOPE ($TARGET_DIR)"
-echo "  ├─ 저장:     $WORKLOG_DEST"
-echo "  ├─ git 추적: $WORKLOG_GIT_TRACK"
-echo "  ├─ 시점:     $WORKLOG_TIMING"
+echo -e "  ${BOLD}$(t '설정 요약' 'Summary')${NC}"
+echo "  ├─ $(t '범위' 'Scope'):     $SCOPE ($TARGET_DIR)"
+echo "  ├─ $(t '저장' 'Storage'):   $WORKLOG_DEST"
+echo "  ├─ $(t 'git 추적' 'Git track'): $WORKLOG_GIT_TRACK"
+echo "  ├─ $(t '시점' 'Timing'):    $WORKLOG_TIMING"
+echo "  ├─ $(t '언어' 'Language'):  $WORKLOG_LANG"
 if [ -n "$NOTION_DB_ID" ]; then
 echo "  ├─ Notion DB: $NOTION_DB_ID"
 fi
-echo "  └─ 훅:       PostToolUse"
+echo "  └─ $(t '훅' 'Hooks'):      PostToolUse, SessionEnd"
 
 echo ""
-echo -e "  ${BOLD}사용법${NC}"
-echo "  • /worklog           — 워크로그 수동 작성"
-echo "  • /migrate-worklogs  — 기존 .worklogs/ → Notion 마이그레이션"
+echo -e "  ${BOLD}$(t '사용법' 'Usage')${NC}"
+echo "  • /worklog           — $(t '워크로그 수동 작성' 'write a worklog entry')"
+echo "  • /migrate-worklogs  — $(t '기존 .worklogs/ → Notion 마이그레이션' 'migrate existing .worklogs/ to Notion')"
 echo ""
-echo -e "  ${BOLD}재설정${NC}"
+echo -e "  ${BOLD}$(t '재설정' 'Reconfigure')${NC}"
 echo "  • $PACKAGE_DIR/install.sh --reconfigure"
 echo ""
-ok "ai-worklog 설치가 완료되었습니다!"
+ok "$(t 'ai-worklog 설치가 완료되었습니다!' 'ai-worklog installed successfully!')"

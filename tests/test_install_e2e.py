@@ -135,7 +135,7 @@ class TestFreshGitInstall(_Base):
     """신규 설치: git-only, 글로벌 스코프"""
 
     # 입력 순서: scope=global, dest=git, git-track=track, timing=each-commit
-    _BASE = ["1", "3", "1", "1"]
+    _BASE = ["1", "1", "3", "1", "1"]
 
     def test_exit_zero(self):
         r = self._run(self._BASE)
@@ -155,6 +155,11 @@ class TestFreshGitInstall(_Base):
         self.assertEqual(env["WORKLOG_DEST"], "git")
         self.assertEqual(env["WORKLOG_GIT_TRACK"], "true")
         self.assertEqual(env["WORKLOG_TIMING"], "each-commit")
+        self.assertEqual(env["WORKLOG_LANG"], "ko")
+
+    def test_settings_env_english_lang(self):
+        self._run(["2", "1", "3", "1", "1"])  # lang=en, scope=global, git, track, each-commit
+        self.assertEqual(self._settings()["env"]["WORKLOG_LANG"], "en")
 
     def test_ai_worklog_dir_points_to_target(self):
         self._run(self._BASE)
@@ -180,16 +185,16 @@ class TestFreshGitInstall(_Base):
 
     def test_git_ignore_mode(self):
         # scope=global, dest=git, git-track=gitignore, timing=each-commit
-        r = self._run(["1", "3", "2", "1"])
+        r = self._run(["1", "1", "3", "2", "1"])
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self._settings()["env"]["WORKLOG_GIT_TRACK"], "false")
 
     def test_timing_session_end(self):
-        self._run(["1", "3", "1", "2"])
+        self._run(["1", "1", "3", "1", "2"])
         self.assertEqual(self._settings()["env"]["WORKLOG_TIMING"], "session-end")
 
     def test_timing_manual(self):
-        self._run(["1", "3", "1", "3"])
+        self._run(["1", "1", "3", "1", "3"])
         self.assertEqual(self._settings()["env"]["WORKLOG_TIMING"], "manual")
 
     def test_notion_db_id_not_added_for_git_mode(self):
@@ -219,41 +224,41 @@ class TestFreshNotionInstallWithCreds(_Base):
 
     def test_both_mode_exit_zero(self):
         # scope=global, dest=both, timing=each-commit
-        self.assertEqual(self._run(["1", "1", "1"]).returncode, 0)
+        self.assertEqual(self._run(["1", "1", "1", "1"]).returncode, 0)
 
     def test_both_mode_dest_and_git_track(self):
-        self._run(["1", "1", "1"])
+        self._run(["1", "1", "1", "1"])
         env = self._settings()["env"]
         self.assertEqual(env["WORKLOG_DEST"], "notion")
         self.assertEqual(env["WORKLOG_GIT_TRACK"], "true")
 
     def test_notion_only_exit_zero(self):
-        self.assertEqual(self._run(["1", "2", "1"]).returncode, 0)
+        self.assertEqual(self._run(["1", "1", "2", "1"]).returncode, 0)
 
     def test_notion_only_dest_and_git_track(self):
-        self._run(["1", "2", "1"])
+        self._run(["1", "1", "2", "1"])
         env = self._settings()["env"]
         self.assertEqual(env["WORKLOG_DEST"], "notion-only")
         self.assertEqual(env["WORKLOG_GIT_TRACK"], "false")
 
     def test_notion_db_id_written_to_settings(self):
-        self._run(["1", "1", "1"])
+        self._run(["1", "1", "1", "1"])
         self.assertEqual(self._settings()["env"]["NOTION_DB_ID"], "fake-db-abc")
 
     def test_output_shows_token_reused(self):
-        r = self._run(["1", "1", "1"])
+        r = self._run(["1", "1", "1", "1"])
         self.assertIn("기존 NOTION_TOKEN", r.stdout)
 
     def test_output_shows_db_id_reused(self):
-        r = self._run(["1", "1", "1"])
+        r = self._run(["1", "1", "1", "1"])
         self.assertIn("기존 NOTION_DB_ID", r.stdout)
 
     def test_all_files_installed(self):
-        self._run(["1", "1", "1"])
+        self._run(["1", "1", "1", "1"])
         self._assert_files(os.path.join(self.tmp, ".claude"))
 
     def test_hooks_added(self):
-        self._run(["1", "1", "1"])
+        self._run(["1", "1", "1", "1"])
         self.assertIn("PostToolUse", self._settings().get("hooks", {}))
 
 
@@ -267,24 +272,24 @@ class TestNotionInstallNoToken(_Base):
 
     def test_notion_only_no_token_exits_zero(self):
         # scope=global, dest=notion-only, token=empty, timing=each-commit
-        r = self._run(["1", "2", "", "1"])
+        r = self._run(["1", "1", "2", "", "1"])
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_both_no_token_exits_zero(self):
-        r = self._run(["1", "1", "", "1"])
+        r = self._run(["1", "1", "1", "", "1"])
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_files_installed_without_token(self):
-        self._run(["1", "2", "", "1"])
+        self._run(["1", "1", "2", "", "1"])
         self._assert_files(os.path.join(self.tmp, ".claude"))
 
     def test_hooks_added_without_token(self):
-        self._run(["1", "2", "", "1"])
+        self._run(["1", "1", "2", "", "1"])
         self.assertIn("PostToolUse", self._settings().get("hooks", {}))
 
     def test_no_token_in_env_file(self):
         """토큰 없으면 .env 에 NOTION_TOKEN 이 기록되지 않음"""
-        self._run(["1", "2", "", "1"])
+        self._run(["1", "1", "2", "", "1"])
         env_file = os.path.join(self.tmp, ".claude", ".env")
         if os.path.exists(env_file):
             self.assertNotIn("NOTION_TOKEN=", open(env_file).read())
@@ -324,7 +329,7 @@ class TestReinstall(_Base):
     def test_no_duplicate_hooks(self):
         """재설치 시 동일 command 가 중복 추가되지 않음"""
         self._seed_settings()
-        self._run(["1", "3", "1", "1"])
+        self._run(["1", "1", "3", "1", "1"])
         cfg = self._settings()
         cmds = [c for c in self._hook_commands(cfg, "PostToolUse") if "hooks/" in c]
         self.assertEqual(len(cmds), 1, f"중복 훅 발견: {cmds}")
@@ -332,14 +337,14 @@ class TestReinstall(_Base):
     def test_unrelated_env_keys_preserved(self):
         """worklog 와 무관한 env 키는 재설치 후에도 보존"""
         self._seed_settings(extra_env={"MY_KEY": "keep_me", "FOO": "bar"})
-        self._run(["1", "3", "1", "1"])
+        self._run(["1", "1", "3", "1", "1"])
         env = self._settings()["env"]
         self.assertEqual(env.get("MY_KEY"), "keep_me")
         self.assertEqual(env.get("FOO"), "bar")
 
     def test_timing_updated_on_reinstall(self):
         self._seed_settings()
-        self._run(["1", "3", "1", "2"])  # session-end
+        self._run(["1", "1", "3", "1", "2"])  # session-end
         self.assertEqual(self._settings()["env"]["WORKLOG_TIMING"], "session-end")
 
     def test_dest_updated_on_reinstall(self):
@@ -353,18 +358,18 @@ class TestReinstall(_Base):
         cfg["env"]["NOTION_DB_ID"] = "fake-db"
         with open(os.path.join(d, "settings.json"), "w") as f:
             json.dump(cfg, f, indent=2)
-        self._run(["1", "2", "1"])  # notion-only
+        self._run(["1", "1", "2", "1"])  # notion-only
         self.assertEqual(self._settings()["env"]["WORKLOG_DEST"], "notion-only")
 
     def test_backup_created_on_reinstall(self):
         """재설치 시 기존 파일을 .bak 으로 백업"""
-        self._run(["1", "3", "1", "1"])   # 첫 설치
-        r = self._run(["1", "3", "1", "1"])  # 재설치
+        self._run(["1", "1", "3", "1", "1"])   # 첫 설치
+        r = self._run(["1", "1", "3", "1", "1"])  # 재설치
         self.assertIn("백업", r.stdout)
 
     def test_settings_json_valid_after_reinstall(self):
         self._seed_settings()
-        self._run(["1", "3", "1", "1"])
+        self._run(["1", "1", "3", "1", "1"])
         cfg = self._settings()
         self.assertIsInstance(cfg, dict)
         self.assertIn("env", cfg)
@@ -375,7 +380,7 @@ class TestReinstall(_Base):
         self._seed_settings(
             extra_hooks={"PreToolUse": [{"hooks": [{"type": "command", "command": "/opt/lint.sh", "timeout": 5}]}]}
         )
-        self._run(["1", "3", "1", "1"])
+        self._run(["1", "1", "3", "1", "1"])
         cfg = self._settings()
         self.assertIn("PreToolUse", cfg["hooks"])
         self.assertTrue(any("lint.sh" in c for c in self._hook_commands(cfg, "PreToolUse")))
@@ -406,23 +411,23 @@ class TestExistingSettingsMerge(_Base):
             )
 
     def test_existing_env_preserved(self):
-        self._run(["1", "3", "1", "1"])
+        self._run(["1", "1", "3", "1", "1"])
         env = self._settings()["env"]
         self.assertEqual(env.get("OTHER_KEY"), "v1")
         self.assertEqual(env.get("API_KEY"), "secret")
 
     def test_existing_pretooluse_hook_preserved(self):
-        self._run(["1", "3", "1", "1"])
+        self._run(["1", "1", "3", "1", "1"])
         cmds = self._hook_commands(self._settings(), "PreToolUse")
         self.assertTrue(any("lint.sh" in c for c in cmds))
 
     def test_existing_posttooluse_hook_preserved(self):
-        self._run(["1", "3", "1", "1"])
+        self._run(["1", "1", "3", "1", "1"])
         cmds = self._hook_commands(self._settings(), "PostToolUse")
         self.assertTrue(any("other.sh" in c for c in cmds))
 
     def test_worklog_hook_added_alongside_existing(self):
-        self._run(["1", "3", "1", "1"])
+        self._run(["1", "1", "3", "1", "1"])
         cmds = self._hook_commands(self._settings(), "PostToolUse")
         self.assertTrue(any("worklog.sh" in c for c in cmds))
 
@@ -435,7 +440,7 @@ class TestExistingSettingsMerge(_Base):
 class TestHookStructure(_Base):
     def setUp(self):
         super().setUp()
-        self._run(["1", "3", "1", "1"])
+        self._run(["1", "1", "3", "1", "1"])
         self._cfg = self._settings()
         self._target = os.path.join(self.tmp, ".claude")
 
@@ -484,7 +489,7 @@ class TestEnvFileHandling(_Base):
         """토큰 입력 시 .env 파일 생성 및 토큰 기록"""
         self._seed_db_id()
         # scope=global, dest=both, token=my_secret_token, timing=each-commit
-        self._run(["1", "1", "my_secret_token", "1"])
+        self._run(["1", "1", "1", "my_secret_token", "1"])
         env_path = os.path.join(self.tmp, ".claude", ".env")
         self.assertTrue(os.path.exists(env_path))
         with open(env_path) as f:
@@ -492,7 +497,7 @@ class TestEnvFileHandling(_Base):
 
     def test_env_file_permission_600(self):
         self._seed_db_id()
-        self._run(["1", "1", "my_secret_token", "1"])
+        self._run(["1", "1", "1", "my_secret_token", "1"])
         env_path = os.path.join(self.tmp, ".claude", ".env")
         if os.path.exists(env_path):
             mode = stat.S_IMODE(os.stat(env_path).st_mode)
@@ -508,7 +513,7 @@ class TestEnvFileHandling(_Base):
             json.dump({"env": {"NOTION_DB_ID": "fake-db-id"}}, f)
 
         # 토큰이 자동 감지되므로 추가 입력 불필요
-        r = self._run(["1", "1", "1"])
+        r = self._run(["1", "1", "1", "1"])
         self.assertIn("기존 NOTION_TOKEN", r.stdout)
         with open(os.path.join(d, ".env")) as f:
             content = f.read()
@@ -524,7 +529,7 @@ class TestEnvFileHandling(_Base):
         with open(os.path.join(d, "settings.json"), "w") as f:
             json.dump({"env": {"NOTION_DB_ID": "fake-db-id"}}, f)
 
-        self._run(["1", "1", "1"])
+        self._run(["1", "1", "1", "1"])
         with open(os.path.join(d, ".env")) as f:
             content = f.read()
         # 기존 토큰이 그대로 있어야 함 (재사용 경로)
@@ -544,18 +549,18 @@ class TestLocalScopeInstall(_Base):
         subprocess.run(["git", "-C", self.tmp, "config", "user.name", "Test"], capture_output=True, check=False)
 
     def test_files_in_local_claude_dir(self):
-        r = self._run(["2", "3", "1", "1"], cwd=self.tmp)
+        r = self._run(["1", "2", "3", "1", "1"], cwd=self.tmp)
         self.assertEqual(r.returncode, 0, r.stderr)
         self._assert_files(os.path.join(self.tmp, ".claude"))
 
     def test_ai_worklog_dir_is_local_claude(self):
-        self._run(["2", "3", "1", "1"], cwd=self.tmp)
+        self._run(["1", "2", "3", "1", "1"], cwd=self.tmp)
         expected = os.path.realpath(os.path.join(self.tmp, ".claude"))
         actual = os.path.realpath(self._settings()["env"]["AI_WORKLOG_DIR"])
         self.assertEqual(actual, expected)
 
     def test_hooks_use_local_paths(self):
-        self._run(["2", "3", "1", "1"], cwd=self.tmp)
+        self._run(["1", "2", "3", "1", "1"], cwd=self.tmp)
         cfg = self._settings()
         real_local = os.path.realpath(os.path.join(self.tmp, ".claude"))
         h = self._find_hook(cfg, "PostToolUse", "worklog.sh")
@@ -564,7 +569,7 @@ class TestLocalScopeInstall(_Base):
 
     def test_gitignore_mode_adds_worklogs_entry(self):
         """git-ignore 모드: .gitignore 에 .worklogs/ 추가"""
-        self._run(["2", "3", "2", "1"], cwd=self.tmp)
+        self._run(["1", "2", "3", "2", "1"], cwd=self.tmp)
         gitignore = os.path.join(self.tmp, ".gitignore")
         if os.path.exists(gitignore):
             with open(gitignore) as f:

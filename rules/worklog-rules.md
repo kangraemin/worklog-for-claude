@@ -1,5 +1,14 @@
 # Worklog Rules
 
+## 언어 (`WORKLOG_LANG`)
+
+| 값 | 동작 |
+|---|---|
+| `ko` | 섹션 헤더를 한국어로 작성 (기본): 요청사항, 작업 내용, 변경 파일, 토큰 사용량 |
+| `en` | 섹션 헤더를 영어로 작성: Request, Summary, Changed Files, Token Usage |
+
+설치 시 언어 선택으로 자동 설정됨.
+
 ## 생성 시점 (`WORKLOG_TIMING`)
 
 | 값 | 동작 |

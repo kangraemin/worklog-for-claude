@@ -86,6 +86,8 @@ description: 워크로그 작성
 
 ## 엔트리 포맷
 
+`WORKLOG_LANG=ko` (기본):
+
 ```markdown
 ---
 
@@ -100,17 +102,39 @@ description: 워크로그 작성
 
 ### 변경 파일
 - `파일명`: 이 파일에서 한 작업 한 줄 설명
-- `파일명`: 이 파일에서 한 작업 한 줄 설명
 
 ### 토큰 사용량
-- 모델: claude-opus-4-6
+- 모델: claude-sonnet-4-6
 - 이번 작업: $1.234
+```
+
+`WORKLOG_LANG=en`:
+
+```markdown
+---
+
+## HH:MM
+
+### Request
+- What the user asked for (extracted from conversation context)
+
+### Summary
+- What was done, concisely
+- Key changes
+
+### Changed Files
+- `filename`: one-line description
+
+### Token Usage
+- Model: claude-sonnet-4-6
+- This session: $1.234
 ```
 
 ## 규칙
 
+- `WORKLOG_LANG` 환경변수에 따라 섹션 헤더 언어 결정 (`ko` 기본, `en` 영어)
 - 파일이 없으면 헤더(`# Worklog: <프로젝트> — YYYY-MM-DD`) 먼저 생성
-- 요청사항은 **사용자 관점**으로 작성 (기술 구현 디테일 X)
-- 작업 내용은 **간결하게** (3줄 이내 권장)
-- ccusage 실패 시 "데이터 없음"으로 표기
+- 요청사항/Request는 **사용자 관점**으로 작성 (기술 구현 디테일 X)
+- 작업 내용/Summary는 **간결하게** (3줄 이내 권장)
+- ccusage 실패 시 "데이터 없음" / "N/A"으로 표기
 - `.worklogs/.snapshot`은 git 추적하지 않음 (`.gitignore`에 추가)

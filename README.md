@@ -82,6 +82,7 @@ Settings live in `settings.json` under `env`:
 | `WORKLOG_TIMING` | `each-commit` / `session-end` / `manual` | `each-commit` | When to write worklogs |
 | `WORKLOG_DEST` | `git` / `notion` / `notion-only` | `git` | Where to store worklogs |
 | `WORKLOG_GIT_TRACK` | `true` / `false` | `true` | Track `.worklogs/` in git |
+| `WORKLOG_LANG` | `ko` / `en` | `ko` | Worklog entry language |
 | `NOTION_DB_ID` | UUID | — | Notion database ID |
 | `AI_WORKLOG_DIR` | path | — | Install location (auto-set) |
 
