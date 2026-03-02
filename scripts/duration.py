@@ -23,7 +23,7 @@ def encode_project_path(cwd: str) -> str:
     return cwd.replace("/", "-").replace(".", "-")
 
 
-def find_latest_jsonl(project_dir: str) -> str | None:
+def find_latest_jsonl(project_dir):
     pattern = os.path.join(project_dir, "*.jsonl")
     files = sorted(glob.glob(pattern), key=os.path.getmtime, reverse=True)
     return files[0] if files else None

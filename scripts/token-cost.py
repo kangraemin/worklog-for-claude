@@ -73,7 +73,7 @@ def calc_cost(model: str, usage: dict) -> float:
     return cost
 
 
-def process_jsonl(jsonl_path: str, after_iso: str) -> tuple[int, float]:
+def process_jsonl(jsonl_path, after_iso):
     total_tokens = 0
     total_cost = 0.0
 

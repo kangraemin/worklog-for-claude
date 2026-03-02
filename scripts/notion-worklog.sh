@@ -107,7 +107,7 @@ PYEOF
 )
 
 # Notion API 호출
-RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "https://api.notion.com/v1/pages" \
+RESPONSE=$(curl -s --connect-timeout 10 --max-time 30 -w "\n%{http_code}" -X POST "https://api.notion.com/v1/pages" \
   -H "Authorization: Bearer $NOTION_TOKEN" \
   -H "Notion-Version: 2022-06-28" \
   -H "Content-Type: application/json" \
