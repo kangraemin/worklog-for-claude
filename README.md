@@ -12,7 +12,7 @@ Every time you run `/commit` in Claude Code, ai-worklog:
 
 1. Reads the current conversation context
 2. Summarizes what was requested and what was done
-3. Calculates token usage and cost delta via [ccusage](https://github.com/ryoppippi/ccusage)
+3. Calculates token usage and cost delta from project JSONL
 4. Writes an entry to `.worklogs/YYYY-MM-DD.md`
 5. Optionally syncs to a Notion database
 
@@ -133,7 +133,6 @@ Removes hooks, scripts, and env vars from `settings.json`. Preserves `.worklogs/
 
 - [Claude Code](https://claude.com/claude-code)
 - `python3`, `curl`, `jq`
-- [ccusage](https://github.com/ryoppippi/ccusage) — optional, for token/cost tracking
 
 ## License
 

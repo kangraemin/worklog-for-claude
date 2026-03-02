@@ -30,8 +30,11 @@ EXPECTED_FILES = [
     "scripts/notion-worklog.sh",
     "scripts/notion-migrate-worklogs.sh",
     "scripts/duration.py",
+    "scripts/token-cost.py",
+    "scripts/worklog-write.sh",
     "hooks/worklog.sh",
     "hooks/session-end.sh",
+    "hooks/post-commit.sh",
     "commands/worklog.md",
     "commands/migrate-worklogs.md",
     "rules/worklog-rules.md",
@@ -41,8 +44,10 @@ EXPECTED_FILES = [
 EXPECTED_EXEC = [
     "scripts/notion-worklog.sh",
     "scripts/notion-migrate-worklogs.sh",
+    "scripts/worklog-write.sh",
     "hooks/worklog.sh",
     "hooks/session-end.sh",
+    "hooks/post-commit.sh",
 ]
 
 
@@ -61,8 +66,6 @@ class _Base(unittest.TestCase):
         os.makedirs(self._bin)
         # claude: 사전 조건 체크 통과용 스텁
         _write_stub(os.path.join(self._bin, "claude"))
-        # ccusage: 선택 설치 프롬프트가 나오지 않도록 스텁
-        _write_stub(os.path.join(self._bin, "ccusage"))
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -189,12 +192,8 @@ class TestFreshGitInstall(_Base):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self._settings()["env"]["WORKLOG_GIT_TRACK"], "false")
 
-    def test_timing_session_end(self):
-        self._run(["1", "1", "3", "1", "2"])
-        self.assertEqual(self._settings()["env"]["WORKLOG_TIMING"], "session-end")
-
     def test_timing_manual(self):
-        self._run(["1", "1", "3", "1", "3"])
+        self._run(["1", "1", "3", "1", "2"])
         self.assertEqual(self._settings()["env"]["WORKLOG_TIMING"], "manual")
 
     def test_notion_db_id_not_added_for_git_mode(self):
@@ -344,8 +343,8 @@ class TestReinstall(_Base):
 
     def test_timing_updated_on_reinstall(self):
         self._seed_settings()
-        self._run(["1", "1", "3", "1", "2"])  # session-end
-        self.assertEqual(self._settings()["env"]["WORKLOG_TIMING"], "session-end")
+        self._run(["1", "1", "3", "1", "2"])  # manual
+        self.assertEqual(self._settings()["env"]["WORKLOG_TIMING"], "manual")
 
     def test_dest_updated_on_reinstall(self):
         """git → notion-only 변경"""

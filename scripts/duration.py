@@ -4,7 +4,7 @@
 Usage:
     python3 ~/.claude/scripts/duration.py <snapshot_unix_timestamp> [project_cwd]
 
-    snapshot_unix_timestamp: .worklogs/.snapshot의 timestamp (unix epoch)
+    snapshot_unix_timestamp: ~/.claude/worklogs/.snapshot의 timestamp (unix epoch)
     project_cwd: 프로젝트 경로 (기본: 현재 디렉토리)
 
 Output:

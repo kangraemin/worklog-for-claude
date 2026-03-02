@@ -58,18 +58,6 @@ if [ ${#MISSING[@]} -gt 0 ]; then
   exit 1
 fi
 
-# ccusage는 선택
-if ! check_cmd "ccusage"; then
-  warn "$(t 'ccusage가 없습니다 (토큰/비용 추적에 필요)' 'ccusage not found (required for token/cost tracking)')"
-  printf "   $(t 'npm install -g ccusage 로 설치하시겠습니까?' 'Install via npm install -g ccusage?') [y/N] "
-  read -r INSTALL_CCUSAGE
-  if [[ "$INSTALL_CCUSAGE" =~ ^[yY]$ ]]; then
-    npm install -g ccusage
-    ok "$(t 'ccusage 설치 완료' 'ccusage installed')"
-  else
-    warn "$(t 'ccusage 없이 계속합니다 (토큰 추적 불가)' 'Continuing without ccusage (token tracking disabled)')"
-  fi
-fi
 
 # ── 설치 범위 ────────────────────────────────────────────────────────────────
 header "$(t '설치 범위' 'Installation Scope')"
@@ -253,16 +241,14 @@ fi
 header "$(t '워크로그 작성 시점' 'When to Write Worklogs')"
 
 echo "  1) each-commit — $(t '커밋할 때마다 자동 (추천)' 'automatically on each commit (recommended)')"
-echo "  2) session-end — $(t '세션 종료 시' 'at session end')"
-echo "  3) manual      — $(t '/worklog 실행할 때만' 'only when running /worklog')"
+echo "  2) manual      — $(t '/worklog 실행할 때만' 'only when running /worklog')"
 echo ""
 printf "$(t '선택' 'Select') [1]: "
 read -r TIMING_CHOICE
 TIMING_CHOICE="${TIMING_CHOICE:-1}"
 
 case "$TIMING_CHOICE" in
-  2) WORKLOG_TIMING="session-end" ;;
-  3) WORKLOG_TIMING="manual" ;;
+  2) WORKLOG_TIMING="manual" ;;
   *) WORKLOG_TIMING="each-commit" ;;
 esac
 
@@ -342,11 +328,14 @@ PYEOF
 copy_file "$PACKAGE_DIR/scripts/notion-worklog.sh"          "$TARGET_DIR/scripts/notion-worklog.sh"
 copy_file "$PACKAGE_DIR/scripts/notion-migrate-worklogs.sh" "$TARGET_DIR/scripts/notion-migrate-worklogs.sh"
 copy_file "$PACKAGE_DIR/scripts/duration.py"                "$TARGET_DIR/scripts/duration.py"
+copy_file "$PACKAGE_DIR/scripts/token-cost.py"             "$TARGET_DIR/scripts/token-cost.py"
 copy_file "$PACKAGE_DIR/scripts/update-check.sh"            "$TARGET_DIR/scripts/update-check.sh"
+copy_file "$PACKAGE_DIR/scripts/worklog-write.sh"           "$TARGET_DIR/scripts/worklog-write.sh"
 
 # hooks (관리 블록만 교체)
-install_file "$PACKAGE_DIR/hooks/worklog.sh"     "$TARGET_DIR/hooks/worklog.sh"
-install_file "$PACKAGE_DIR/hooks/session-end.sh" "$TARGET_DIR/hooks/session-end.sh"
+install_file "$PACKAGE_DIR/hooks/worklog.sh"      "$TARGET_DIR/hooks/worklog.sh"
+install_file "$PACKAGE_DIR/hooks/session-end.sh"  "$TARGET_DIR/hooks/session-end.sh"
+copy_file    "$PACKAGE_DIR/hooks/post-commit.sh"  "$TARGET_DIR/hooks/post-commit.sh"
 
 # commands (항상 덮어쓰기)
 copy_file "$PACKAGE_DIR/commands/worklog.md"          "$TARGET_DIR/commands/worklog.md"
@@ -360,8 +349,10 @@ copy_file "$PACKAGE_DIR/rules/worklog-rules.md" "$TARGET_DIR/rules/worklog-rules
 chmod +x "$TARGET_DIR/scripts/notion-worklog.sh"
 chmod +x "$TARGET_DIR/scripts/notion-migrate-worklogs.sh"
 chmod +x "$TARGET_DIR/scripts/update-check.sh"
+chmod +x "$TARGET_DIR/scripts/worklog-write.sh"
 chmod +x "$TARGET_DIR/hooks/worklog.sh"
 chmod +x "$TARGET_DIR/hooks/session-end.sh"
+chmod +x "$TARGET_DIR/hooks/post-commit.sh"
 
 # ── 버전 SHA 저장 ─────────────────────────────────────────────────────────────
 INSTALLED_SHA=$(git -C "$PACKAGE_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -473,6 +464,58 @@ if [ "$WORKLOG_GIT_TRACK" = "false" ] && [ "$SCOPE" = "local" ]; then
   fi
 fi
 
+# ── git hook 설치 ─────────────────────────────────────────────────────────────
+header "$(t 'Git Hook 설치' 'Git Hook Setup')"
+
+GIT_HOOKS_DIR="$TARGET_DIR/git-hooks"
+mkdir -p "$GIT_HOOKS_DIR"
+
+# post-commit hook 래퍼 설치
+copy_file "$PACKAGE_DIR/git-hooks/post-commit" "$GIT_HOOKS_DIR/post-commit"
+chmod +x "$GIT_HOOKS_DIR/post-commit"
+
+if [ "$SCOPE" = "global" ]; then
+  # 전역: core.hooksPath 설정
+  CURRENT_HOOKS_PATH=$(git config --global core.hooksPath 2>/dev/null || true)
+
+  if [ -z "$CURRENT_HOOKS_PATH" ]; then
+    git config --global core.hooksPath "$GIT_HOOKS_DIR"
+    ok "$(t '전역 git hooksPath 설정' 'Global git hooksPath configured'): $GIT_HOOKS_DIR"
+  elif [ "$CURRENT_HOOKS_PATH" = "$GIT_HOOKS_DIR" ]; then
+    ok "$(t '전역 git hooksPath 이미 설정됨' 'Global git hooksPath already set'): $GIT_HOOKS_DIR"
+  else
+    warn "$(t '기존 core.hooksPath 발견' 'Existing core.hooksPath found'): $CURRENT_HOOKS_PATH"
+    info "$(t '기존 경로에 post-commit hook도 설치합니다.' 'Also installing post-commit hook to existing path.')"
+    # 기존 hooksPath에도 post-commit 설치 (chaining)
+    if [ -d "$CURRENT_HOOKS_PATH" ]; then
+      copy_file "$PACKAGE_DIR/git-hooks/post-commit" "$CURRENT_HOOKS_PATH/post-commit"
+      chmod +x "$CURRENT_HOOKS_PATH/post-commit"
+    fi
+  fi
+
+  info "$(t 'hook chaining: 레포별 hook은 .git/hooks/post-commit.local로 이름 변경하세요.' \
+          'Hook chaining: rename repo hooks to .git/hooks/post-commit.local')"
+else
+  # 로컬: 현재 레포 .git/hooks/에 설치
+  REPO_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || true)
+  if [ -n "$REPO_GIT_DIR" ]; then
+    LOCAL_HOOK="$REPO_GIT_DIR/hooks/post-commit"
+    if [ -f "$LOCAL_HOOK" ]; then
+      # 기존 hook → .local로 보존 (chaining)
+      if [ ! -f "${LOCAL_HOOK}.local" ]; then
+        mv "$LOCAL_HOOK" "${LOCAL_HOOK}.local"
+        warn "$(t '기존 post-commit hook → post-commit.local로 보존' \
+                'Existing post-commit hook preserved as post-commit.local')"
+      fi
+    fi
+    copy_file "$PACKAGE_DIR/git-hooks/post-commit" "$LOCAL_HOOK"
+    chmod +x "$LOCAL_HOOK"
+  else
+    warn "$(t 'git 레포가 아닙니다. git hook 설치를 건너뜁니다.' \
+            'Not a git repo. Skipping git hook installation.')"
+  fi
+fi
+
 # ── 완료 ─────────────────────────────────────────────────────────────────────
 header "$(t '설치 완료' 'Installation Complete')"
 
@@ -485,7 +528,8 @@ echo "  ├─ $(t '언어' 'Language'):  $WORKLOG_LANG"
 if [ -n "$NOTION_DB_ID" ]; then
 echo "  ├─ Notion DB: $NOTION_DB_ID"
 fi
-echo "  └─ $(t '훅' 'Hooks'):      PostToolUse, SessionEnd"
+echo "  ├─ $(t '훅' 'Hooks'):      PostToolUse, SessionEnd"
+echo "  └─ $(t 'Git Hook' 'Git Hook'):  post-commit ($(t '워크로그 자동 작성' 'auto worklog'))"
 
 echo ""
 echo -e "  ${BOLD}$(t '사용법' 'Usage')${NC}"
