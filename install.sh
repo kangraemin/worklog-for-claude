@@ -252,6 +252,27 @@ case "$TIMING_CHOICE" in
   *) WORKLOG_TIMING="each-commit" ;;
 esac
 
+# ── 자동 커밋 ─────────────────────────────────────────────────────────────────
+AUTO_COMMIT="false"
+
+if [ "$WORKLOG_TIMING" = "each-commit" ]; then
+  header "$(t '자동 커밋' 'Auto-Commit')"
+
+  info "$(t 'Claude 작업 완료 시 미커밋 변경사항을 자동 커밋합니다.' \
+          'Automatically commits uncommitted changes when Claude finishes.')"
+  echo ""
+  echo "  1) $(t '사용 (추천)' 'Enable (recommended)')"
+  echo "  2) $(t '사용 안 함' 'Disable')"
+  echo ""
+  printf "$(t '선택' 'Select') [1]: "
+  read -r AC_CHOICE
+  AC_CHOICE="${AC_CHOICE:-1}"
+
+  if [ "$AC_CHOICE" != "2" ]; then
+    AUTO_COMMIT="true"
+  fi
+fi
+
 # ── 파일 복사 ────────────────────────────────────────────────────────────────
 header "$(t '파일 설치' 'Installing Files')"
 
@@ -336,6 +357,7 @@ copy_file "$PACKAGE_DIR/scripts/worklog-write.sh"           "$TARGET_DIR/scripts
 install_file "$PACKAGE_DIR/hooks/worklog.sh"      "$TARGET_DIR/hooks/worklog.sh"
 install_file "$PACKAGE_DIR/hooks/session-end.sh"  "$TARGET_DIR/hooks/session-end.sh"
 copy_file    "$PACKAGE_DIR/hooks/post-commit.sh"  "$TARGET_DIR/hooks/post-commit.sh"
+install_file "$PACKAGE_DIR/hooks/stop.sh"         "$TARGET_DIR/hooks/stop.sh"
 
 # commands (항상 덮어쓰기)
 copy_file "$PACKAGE_DIR/commands/worklog.md"          "$TARGET_DIR/commands/worklog.md"
@@ -343,7 +365,8 @@ copy_file "$PACKAGE_DIR/commands/migrate-worklogs.md" "$TARGET_DIR/commands/migr
 copy_file "$PACKAGE_DIR/commands/update-worklog.md"   "$TARGET_DIR/commands/update-worklog.md"
 
 # rules (항상 덮어쓰기)
-copy_file "$PACKAGE_DIR/rules/worklog-rules.md" "$TARGET_DIR/rules/worklog-rules.md"
+copy_file "$PACKAGE_DIR/rules/worklog-rules.md"    "$TARGET_DIR/rules/worklog-rules.md"
+copy_file "$PACKAGE_DIR/rules/auto-commit-rules.md" "$TARGET_DIR/rules/auto-commit-rules.md"
 
 # 실행 권한
 chmod +x "$TARGET_DIR/scripts/notion-worklog.sh"
@@ -353,6 +376,7 @@ chmod +x "$TARGET_DIR/scripts/worklog-write.sh"
 chmod +x "$TARGET_DIR/hooks/worklog.sh"
 chmod +x "$TARGET_DIR/hooks/session-end.sh"
 chmod +x "$TARGET_DIR/hooks/post-commit.sh"
+chmod +x "$TARGET_DIR/hooks/stop.sh"
 
 # ── 버전 SHA 저장 ─────────────────────────────────────────────────────────────
 INSTALLED_SHA=$(git -C "$PACKAGE_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -382,7 +406,7 @@ header "$(t 'settings.json 설정' 'Updating settings.json')"
 
 SETTINGS_FILE="$TARGET_DIR/settings.json"
 
-python3 - "$SETTINGS_FILE" "$TARGET_DIR" "$WORKLOG_TIMING" "$WORKLOG_DEST" "$WORKLOG_GIT_TRACK" "${NOTION_DB_ID:-}" "$WORKLOG_LANG" <<'PYEOF'
+python3 - "$SETTINGS_FILE" "$TARGET_DIR" "$WORKLOG_TIMING" "$WORKLOG_DEST" "$WORKLOG_GIT_TRACK" "${NOTION_DB_ID:-}" "$WORKLOG_LANG" "$AUTO_COMMIT" <<'PYEOF'
 import json, sys, os
 
 settings_file = sys.argv[1]
@@ -392,6 +416,7 @@ dest          = sys.argv[4]
 git_track     = sys.argv[5]
 notion_db_id  = sys.argv[6]
 worklog_lang  = sys.argv[7]
+auto_commit   = sys.argv[8]
 
 # 기존 설정 읽기
 cfg = {}
@@ -414,36 +439,42 @@ hooks = cfg.setdefault('hooks', {})
 
 # 훅 정의: (이벤트, command, timeout, async)
 hook_defs = [
-    ('PostToolUse', f'{target_dir}/hooks/worklog.sh',     5, True),
-    ('SessionEnd',  f'{target_dir}/hooks/session-end.sh', 5, False),
+    ('PostToolUse', f'{target_dir}/hooks/worklog.sh',     5,  True),
+    ('SessionEnd',  f'{target_dir}/hooks/session-end.sh', 5,  False),
 ]
 
-for event, command, timeout, is_async in hook_defs:
-    event_hooks = hooks.setdefault(event, [])
+# auto-commit이면 Stop hook 추가
+if auto_commit == 'true':
+    hook_defs.append(
+        ('Stop', f'{target_dir}/hooks/stop.sh', 30, False),
+    )
 
-    # 중복 체크: 같은 command가 이미 있는지
-    already_exists = False
+def add_hook(event, command, timeout, is_async):
+    event_hooks = hooks.setdefault(event, [])
     for group in event_hooks:
         for h in group.get('hooks', []):
             if h.get('command', '').rstrip() == command:
-                already_exists = True
-                break
-        if already_exists:
-            break
+                print(f'  · {event} hook already exists: {os.path.basename(command)}')
+                return
+    new_hook = {'type': 'command', 'command': command, 'timeout': timeout}
+    if is_async:
+        new_hook['async'] = True
+    event_hooks.append({'hooks': [new_hook]})
+    print(f'  ✓ {event} hook added: {os.path.basename(command)}')
 
-    if not already_exists:
-        new_hook = {
-            'type': 'command',
-            'command': command,
-            'timeout': timeout,
-        }
-        if is_async:
-            new_hook['async'] = True
+for event, command, timeout, is_async in hook_defs:
+    add_hook(event, command, timeout, is_async)
 
-        event_hooks.append({'hooks': [new_hook]})
-        print(f'  ✓ {event} hook added: {os.path.basename(command)}')
-    else:
-        print(f'  · {event} hook already exists: {os.path.basename(command)}')
+# auto-commit 비활성 시 기존 Stop hook 제거
+if auto_commit != 'true':
+    stop_hooks = hooks.get('Stop', [])
+    stop_command = f'{target_dir}/hooks/stop.sh'
+    hooks['Stop'] = [
+        g for g in stop_hooks
+        if not any(h.get('command', '').rstrip() == stop_command for h in g.get('hooks', []))
+    ]
+    if not hooks['Stop']:
+        del hooks['Stop']
 
 # 저장
 with open(settings_file, 'w', encoding='utf-8') as f:
@@ -528,8 +559,9 @@ echo "  ├─ $(t '언어' 'Language'):  $WORKLOG_LANG"
 if [ -n "$NOTION_DB_ID" ]; then
 echo "  ├─ Notion DB: $NOTION_DB_ID"
 fi
-echo "  ├─ $(t '훅' 'Hooks'):      PostToolUse, SessionEnd"
-echo "  └─ $(t 'Git Hook' 'Git Hook'):  post-commit ($(t '워크로그 자동 작성' 'auto worklog'))"
+echo "  ├─ $(t '훅' 'Hooks'):      PostToolUse, SessionEnd$([ "$AUTO_COMMIT" = "true" ] && echo ", Stop")"
+echo "  ├─ $(t 'Git Hook' 'Git Hook'):  post-commit ($(t '워크로그 자동 작성' 'auto worklog'))"
+echo "  └─ $(t '자동 커밋' 'Auto-Commit'): $([ "$AUTO_COMMIT" = "true" ] && t '사용' 'Enabled' || t '사용 안 함' 'Disabled')"
 
 echo ""
 echo -e "  ${BOLD}$(t '사용법' 'Usage')${NC}"
