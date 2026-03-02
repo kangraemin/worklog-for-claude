@@ -8,15 +8,15 @@ Track what you built, how long it took, and what it cost — automatically, on e
 
 ## What it does
 
-Every time you run `/commit` in Claude Code, ai-worklog:
+Every time you `git commit`, ai-worklog:
 
-1. Reads the current conversation context
-2. Summarizes what was requested and what was done
+1. Runs a git post-commit hook
+2. Uses `claude -p` to summarize the commit (request, changes, file descriptions)
 3. Calculates token usage and cost delta from project JSONL
 4. Writes an entry to `.worklogs/YYYY-MM-DD.md`
 5. Optionally syncs to a Notion database
 
-No manual journaling. No forgetting what you did last Tuesday.
+Works with any commit method — `/commit` skill, `git commit` directly, or auto-commit via Stop hook.
 
 ## Install
 
@@ -30,18 +30,25 @@ The interactive wizard configures:
 
 - **Scope** — Global (`~/.claude/`) or project-local (`.claude/`)
 - **Storage** — Local markdown, Notion, or both
-- **Timing** — On each commit, session end, or manually
+- **Timing** — On each commit or manually
 - **Git tracking** — Whether `.worklogs/` is committed with your code
+- **Auto-commit** — Auto-commit uncommitted changes when Claude stops
 
 ## Usage
 
-### Writing a worklog
+### Automatic (default)
+
+With `WORKLOG_TIMING=each-commit`, every `git commit` triggers a post-commit hook that writes a worklog entry automatically. No action required.
+
+### Manual
 
 ```
 /worklog
 ```
 
-Appends an entry to `.worklogs/YYYY-MM-DD.md`:
+Writes a worklog entry from the current conversation context.
+
+### Entry format
 
 ```markdown
 ## 14:30
@@ -61,11 +68,9 @@ Appends an entry to `.worklogs/YYYY-MM-DD.md`:
 - 이번 작업: $1.089
 ```
 
-With `WORKLOG_TIMING=each-commit` (default), this runs automatically on every `/commit`.
-
 ### Migrating existing worklogs to Notion
 
-```bash
+```
 /migrate-worklogs              # dry-run preview
 /migrate-worklogs --all        # migrate all .md files
 /migrate-worklogs --date 2026-03-01  # specific date only
@@ -73,13 +78,21 @@ With `WORKLOG_TIMING=each-commit` (default), this runs automatically on every `/
 
 Already-migrated entries are skipped automatically (tracked in `.worklogs/.migrated`).
 
+### Updating ai-worklog
+
+```
+/update-worklog
+```
+
+Checks for updates and re-runs install if a new version is available.
+
 ## Configuration
 
 Settings live in `settings.json` under `env`:
 
 | Variable | Values | Default | Description |
 |----------|--------|---------|-------------|
-| `WORKLOG_TIMING` | `each-commit` / `session-end` / `manual` | `each-commit` | When to write worklogs |
+| `WORKLOG_TIMING` | `each-commit` / `manual` | `each-commit` | When to write worklogs |
 | `WORKLOG_DEST` | `git` / `notion` / `notion-only` | `git` | Where to store worklogs |
 | `WORKLOG_GIT_TRACK` | `true` / `false` | `true` | Track `.worklogs/` in git |
 | `WORKLOG_LANG` | `ko` / `en` | `ko` | Worklog entry language |
@@ -114,12 +127,49 @@ The database schema:
 | Duration | number | Actual Claude work time (minutes) |
 | Model | select | Claude model used |
 
-## Hooks
+## Architecture
+
+### How it works
+
+```
+git commit
+  └→ post-commit hook (git-hooks/post-commit)
+       └→ hooks/post-commit.sh
+            ├→ claude -p: summarize commit (request, changes, file descriptions)
+            └→ scripts/worklog-write.sh
+                 ├→ token-cost.py: calculate cost delta
+                 ├→ duration.py: calculate work time
+                 ├→ write .worklogs/YYYY-MM-DD.md
+                 └→ notion-worklog.sh: sync to Notion (optional)
+```
+
+### Hooks
 
 | Event | File | Description |
 |-------|------|-------------|
 | `PostToolUse` | `hooks/worklog.sh` | Collects tool usage into a per-session JSONL file |
 | `SessionEnd` | `hooks/session-end.sh` | Cleans up the JSONL collection file |
+| `Stop` | `hooks/stop.sh` | Auto-commits uncommitted changes (optional) |
+| git `post-commit` | `hooks/post-commit.sh` | Generates worklog entry on each commit |
+
+### Scripts
+
+| File | Description |
+|------|-------------|
+| `scripts/worklog-write.sh` | Core worklog writer (file + Notion + snapshot) |
+| `scripts/token-cost.py` | Token/cost delta from JSONL |
+| `scripts/duration.py` | Actual Claude work time from JSONL |
+| `scripts/notion-worklog.sh` | Notion API page creation |
+| `scripts/notion-migrate-worklogs.sh` | Bulk migration of .md to Notion |
+| `scripts/update-check.sh` | Version check against remote |
+
+### Commands
+
+| Skill | Description |
+|-------|-------------|
+| `/worklog` | Manual worklog entry from conversation context |
+| `/migrate-worklogs` | Migrate existing .worklogs/ to Notion |
+| `/update-worklog` | Check for updates and re-install |
 
 ## Uninstall
 
