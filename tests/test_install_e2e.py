@@ -38,6 +38,7 @@ EXPECTED_FILES = [
     "hooks/stop.sh",
     "commands/worklog.md",
     "commands/migrate-worklogs.md",
+    "commands/finish.md",
     "rules/worklog-rules.md",
     "rules/auto-commit-rules.md",
 ]
@@ -467,9 +468,14 @@ class TestHookStructure(_Base):
     def test_stop_registered_with_auto_commit(self):
         hooks = self._cfg.get("hooks", {})
         self.assertIn("Stop", hooks)
-        h = self._find_hook(self._cfg, "Stop", "stop.sh")
-        self.assertIsNotNone(h)
-        self.assertEqual(h["timeout"], 30)
+        # prompt type hook (/finish) 확인
+        prompt_hooks = [
+            h for g in hooks.get("Stop", []) for h in g.get("hooks", [])
+            if h.get("type") == "prompt"
+        ]
+        self.assertTrue(len(prompt_hooks) > 0, "Stop hook should be prompt type")
+        self.assertIn("/finish", prompt_hooks[0].get("prompt", ""))
+        self.assertEqual(prompt_hooks[0].get("timeout"), 120)
 
     def test_stop_not_registered_without_auto_commit(self):
         """auto-commit=no 면 Stop hook 미등록"""

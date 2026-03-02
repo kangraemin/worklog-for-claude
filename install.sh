@@ -363,6 +363,7 @@ install_file "$PACKAGE_DIR/hooks/stop.sh"         "$TARGET_DIR/hooks/stop.sh"
 copy_file "$PACKAGE_DIR/commands/worklog.md"          "$TARGET_DIR/commands/worklog.md"
 copy_file "$PACKAGE_DIR/commands/migrate-worklogs.md" "$TARGET_DIR/commands/migrate-worklogs.md"
 copy_file "$PACKAGE_DIR/commands/update-worklog.md"   "$TARGET_DIR/commands/update-worklog.md"
+copy_file "$PACKAGE_DIR/commands/finish.md"           "$TARGET_DIR/commands/finish.md"
 
 # rules (항상 덮어쓰기)
 copy_file "$PACKAGE_DIR/rules/worklog-rules.md"    "$TARGET_DIR/rules/worklog-rules.md"
@@ -440,16 +441,10 @@ hooks = cfg.setdefault('hooks', {})
 # 훅 정의: (이벤트, command, timeout, async)
 hook_defs = [
     ('PostToolUse', f'{target_dir}/hooks/worklog.sh',     5,  True),
-    ('SessionEnd',  f'{target_dir}/hooks/session-end.sh', 5,  False),
+    ('SessionEnd',  f'{target_dir}/hooks/session-end.sh', 15, False),
 ]
 
-# auto-commit이면 Stop hook 추가
-if auto_commit == 'true':
-    hook_defs.append(
-        ('Stop', f'{target_dir}/hooks/stop.sh', 30, False),
-    )
-
-def add_hook(event, command, timeout, is_async):
+def add_command_hook(event, command, timeout, is_async):
     event_hooks = hooks.setdefault(event, [])
     for group in event_hooks:
         for h in group.get('hooks', []):
@@ -463,18 +458,42 @@ def add_hook(event, command, timeout, is_async):
     print(f'  ✓ {event} hook added: {os.path.basename(command)}')
 
 for event, command, timeout, is_async in hook_defs:
-    add_hook(event, command, timeout, is_async)
+    add_command_hook(event, command, timeout, is_async)
 
-# auto-commit 비활성 시 기존 Stop hook 제거
-if auto_commit != 'true':
+# ── Stop hook: prompt type (auto-commit) ──
+STOP_PROMPT_MARKER = '/finish'
+
+def remove_old_stop_hooks():
+    """기존 command type stop.sh 및 이전 prompt type Stop hook 제거"""
     stop_hooks = hooks.get('Stop', [])
-    stop_command = f'{target_dir}/hooks/stop.sh'
     hooks['Stop'] = [
         g for g in stop_hooks
-        if not any(h.get('command', '').rstrip() == stop_command for h in g.get('hooks', []))
+        if not any(
+            ('stop.sh' in h.get('command', '') or STOP_PROMPT_MARKER in h.get('prompt', ''))
+            for h in g.get('hooks', [])
+        )
     ]
     if not hooks['Stop']:
-        del hooks['Stop']
+        hooks.pop('Stop', None)
+
+if auto_commit == 'true':
+    remove_old_stop_hooks()
+    stop_prompt = (
+        'git status로 미커밋 변경사항이 있는지 확인해. '
+        '있으면 /finish 스킬을 실행해서 커밋, 푸시, 워크로그 작성을 해줘. '
+        '없으면 할 일 없음.'
+    )
+    stop_hooks = hooks.setdefault('Stop', [])
+    stop_hooks.append({
+        'hooks': [{
+            'type': 'prompt',
+            'prompt': stop_prompt,
+            'timeout': 120,
+        }]
+    })
+    print(f'  ✓ Stop hook added: prompt type (/finish)')
+else:
+    remove_old_stop_hooks()
 
 # 저장
 with open(settings_file, 'w', encoding='utf-8') as f:
@@ -559,9 +578,9 @@ echo "  ├─ $(t '언어' 'Language'):  $WORKLOG_LANG"
 if [ -n "$NOTION_DB_ID" ]; then
 echo "  ├─ Notion DB: $NOTION_DB_ID"
 fi
-echo "  ├─ $(t '훅' 'Hooks'):      PostToolUse, SessionEnd$([ "$AUTO_COMMIT" = "true" ] && echo ", Stop")"
-echo "  ├─ $(t 'Git Hook' 'Git Hook'):  post-commit ($(t '워크로그 자동 작성' 'auto worklog'))"
-echo "  └─ $(t '자동 커밋' 'Auto-Commit'): $([ "$AUTO_COMMIT" = "true" ] && t '사용' 'Enabled' || t '사용 안 함' 'Disabled')"
+echo "  ├─ $(t '훅' 'Hooks'):      PostToolUse, SessionEnd$([ "$AUTO_COMMIT" = "true" ] && echo ", Stop (prompt:/finish)")"
+echo "  ├─ $(t 'Git Hook' 'Git Hook'):  post-commit ($(t '터미널 커밋 시 워크로그' 'worklog on terminal commits'))"
+echo "  └─ $(t '자동 커밋' 'Auto-Commit'): $([ "$AUTO_COMMIT" = "true" ] && t '사용 (/finish)' 'Enabled (/finish)' || t '사용 안 함' 'Disabled')"
 
 echo ""
 echo -e "  ${BOLD}$(t '사용법' 'Usage')${NC}"

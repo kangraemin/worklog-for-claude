@@ -2,6 +2,11 @@
 # git post-commit hook — 커밋 후 자동 워크로그 작성
 # install.sh에서 git hooks 경로에 설치됨 (전역 또는 로컬)
 
+# ── Claude Code 세션 내에서는 스킵 ───────────────────────────────────────────
+# 세션 내에서는 /finish 또는 /commit 스킬이 워크로그를 처리한다.
+# post-commit hook은 터미널에서 직접 git commit 할 때만 동작.
+[ -n "${CLAUDECODE:-}" ] && exit 0
+
 # ── WORKLOG_TIMING 체크 ──────────────────────────────────────────────────────
 # manual이면 스킵 (each-commit이 기본)
 [ "${WORKLOG_TIMING:-each-commit}" = "manual" ] && exit 0
@@ -40,16 +45,15 @@ fi
 COMMIT_MSG=$(git log -1 --pretty=%B 2>/dev/null || echo "")
 LANG_OPT="${WORKLOG_LANG:-ko}"
 
-# 변경 파일 목록: 파일명만 추출 (git diff --stat raw 대신)
+# 변경 파일 목록: 파일명만 추출
 CHANGED_FILES=$(git diff HEAD~1 HEAD --name-only 2>/dev/null || echo "")
-if [ "$LANG_OPT" = "en" ]; then
-  FILES_LIST=$(echo "$CHANGED_FILES" | grep -v '^$' | sed 's/^/- `/' | sed 's/$/`/')
-else
-  FILES_LIST=$(echo "$CHANGED_FILES" | grep -v '^$' | sed 's/^/- `/' | sed 's/$/`/')
-fi
+
+# ── .worklogs/ 만 변경된 커밋이면 스킵 (무한루프 방지) ────────────────────────
+NON_WORKLOG=$(echo "$CHANGED_FILES" | grep -v '^\.worklogs/' | grep -v '^$')
+[ -z "$NON_WORKLOG" ] && exit 0
 
 # ── claude -p 로 요약 생성 시도 ──────────────────────────────────────────────
-# Claude Code 세션 내에서 중첩 실행 차단을 우회하기 위해 CLAUDECODE unset
+# 터미널에서 직접 git commit 할 때만 도달 (CLAUDECODE 미설정)
 SUMMARY=""
 if command -v claude &>/dev/null; then
   if [ "$LANG_OPT" = "en" ]; then
@@ -92,7 +96,7 @@ $CHANGED_FILES
 "
   fi
 
-  SUMMARY=$(unset CLAUDECODE && claude -p "$PROMPT" 2>/dev/null) || SUMMARY=""
+  SUMMARY=$(claude -p "$PROMPT" 2>/dev/null) || SUMMARY=""
 fi
 
 # ── fallback: auto 포맷 ─────────────────────────────────────────────────────
