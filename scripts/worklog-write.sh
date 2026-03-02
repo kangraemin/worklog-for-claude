@@ -138,8 +138,8 @@ NOTION_SCRIPT="$AI_WORKLOG_DIR/scripts/notion-worklog.sh"
 
 if [ "$WORKLOG_DEST" = "notion" ] || [ "$WORKLOG_DEST" = "notion-only" ]; then
   if [ -f "$NOTION_SCRIPT" ] && [ -n "${NOTION_DB_ID:-}" ]; then
-    # Title: 요약의 첫 줄 (### 제거, - 제거)
-    TITLE=$(echo "$SUMMARY" | grep -v '^\s*$' | head -1 | sed 's/^#* //' | sed 's/^- //')
+    # Title: 요약에서 첫 내용 줄 추출 (### 헤더 스킵, - 제거)
+    TITLE=$(echo "$SUMMARY" | grep -v '^\s*$' | grep -v '^###' | head -1 | sed 's/^- //')
 
     bash "$NOTION_SCRIPT" \
       "$TITLE" \
