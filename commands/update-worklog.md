@@ -1,5 +1,5 @@
 ---
-description: ai-worklog 최신 버전 확인 및 업데이트
+description: worklog-for-claude 최신 버전 확인 및 업데이트
 ---
 
 # /update-worklog

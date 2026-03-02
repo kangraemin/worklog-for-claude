@@ -2,7 +2,7 @@
 # git post-commit hook — 워크로그 자동 작성
 # core.hooksPath 또는 .git/hooks/post-commit 에 설치됨
 
-# ai-worklog hooks/post-commit.sh 로 위임
+# worklog-for-claude hooks/post-commit.sh 로 위임
 AI_WORKLOG_DIR="${AI_WORKLOG_DIR:-$HOME/.claude}"
 HOOK_SCRIPT="$AI_WORKLOG_DIR/hooks/post-commit.sh"
 

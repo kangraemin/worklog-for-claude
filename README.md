@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/notion-preview.png" alt="ai-worklog" width="640" />
+  <img src="docs/notion-preview.png" alt="worklog-for-claude" width="640" />
 </p>
 
-<h1 align="center">ai-worklog</h1>
+<h1 align="center">worklog-for-claude</h1>
 
 <p align="center">
   <strong>Automatic work logging for <a href="https://claude.com/claude-code">Claude Code</a> sessions</strong>
@@ -11,9 +11,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kangraemin/ai-worklog/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg" /></a>
-  <a href="https://github.com/kangraemin/ai-worklog/issues"><img alt="Issues" src="https://img.shields.io/github/issues/kangraemin/ai-worklog.svg" /></a>
-  <a href="https://github.com/kangraemin/ai-worklog/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/kangraemin/ai-worklog.svg?style=social" /></a>
+  <a href="https://github.com/kangraemin/worklog-for-claude/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg" /></a>
+  <a href="https://github.com/kangraemin/worklog-for-claude/issues"><img alt="Issues" src="https://img.shields.io/github/issues/kangraemin/worklog-for-claude.svg" /></a>
+  <a href="https://github.com/kangraemin/worklog-for-claude/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/kangraemin/worklog-for-claude.svg?style=social" /></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey" />
   <img alt="Claude Code" src="https://img.shields.io/badge/Claude%20Code-compatible-blueviolet" />
 </p>
@@ -22,7 +22,7 @@
 
 ## Table of Contents
 
-- [Why ai-worklog?](#why-ai-worklog)
+- [Why worklog-for-claude?](#why-worklog-for-claude)
 - [Features](#features)
 - [Quick Start](#quick-start)
 - [How It Works](#how-it-works)
@@ -37,11 +37,11 @@
 
 ---
 
-## Why ai-worklog?
+## Why worklog-for-claude?
 
-When you're deep in a Claude Code session, it's easy to lose track of what you've done. **ai-worklog captures everything automatically** — so you can focus on building, not bookkeeping.
+When you're deep in a Claude Code session, it's easy to lose track of what you've done. **worklog-for-claude captures everything automatically** — so you can focus on building, not bookkeeping.
 
-| Without ai-worklog | With ai-worklog |
+| Without worklog-for-claude | With worklog-for-claude |
 |---|---|
 | Manually write what you did | AI-generated commit summaries |
 | Guess how long tasks took | Precise Claude processing time |
@@ -89,8 +89,8 @@ When you're deep in a Claude Code session, it's easy to lose track of what you'v
 ### Install
 
 ```bash
-git clone https://github.com/kangraemin/ai-worklog.git
-cd ai-worklog
+git clone https://github.com/kangraemin/worklog-for-claude.git
+cd worklog-for-claude
 ./install.sh
 ```
 
@@ -253,7 +253,7 @@ Content body is auto-converted from markdown to Notion blocks (`###` → heading
 ### Directory Structure
 
 ```
-ai-worklog/
+worklog-for-claude/
 ├── install.sh              # Interactive installer
 ├── uninstall.sh            # Clean removal
 ├── hooks/

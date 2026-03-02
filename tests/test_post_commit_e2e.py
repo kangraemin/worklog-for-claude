@@ -54,8 +54,8 @@ class _GitRepoBase(unittest.TestCase):
         subprocess.run(["git", "-C", self.repo, "commit", "-m", "init"], capture_output=True, env=git_env)
         subprocess.run(["git", "-C", self.repo, "push"], capture_output=True, env=git_env)
 
-        # ai-worklog 설치 디렉토리 (fake)
-        self.ai_dir = os.path.join(self.tmp, "ai-worklog")
+        # worklog-for-claude 설치 디렉토리 (fake)
+        self.ai_dir = os.path.join(self.tmp, "worklog-for-claude")
         os.makedirs(os.path.join(self.ai_dir, "scripts"))
         os.makedirs(os.path.join(self.ai_dir, "hooks"))
 

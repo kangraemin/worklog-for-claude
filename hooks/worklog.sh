@@ -3,7 +3,7 @@
 
 INPUT=$(cat)
 
-# --- ai-worklog start ---
+# --- worklog-for-claude start ---
 # WORKLOG_TIMING=manual이면 수집 불필요
 [ "${WORKLOG_TIMING:-each-commit}" = "manual" ] && exit 0
 
@@ -24,6 +24,6 @@ mkdir -p "$COLLECT_DIR"
 COLLECT_FILE="$COLLECT_DIR/$SESSION_ID.jsonl"
 
 echo "{\"ts\":\"$TIMESTAMP\",\"tool\":\"$TOOL_NAME\",\"input\":$TOOL_INPUT}" >> "$COLLECT_FILE"
-# --- ai-worklog end ---
+# --- worklog-for-claude end ---
 
 exit 0

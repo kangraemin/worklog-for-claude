@@ -1,5 +1,5 @@
 #!/bin/bash
-# ai-worklog install wizard
+# worklog-for-claude install wizard
 # Usage: ./install.sh [--reconfigure]
 
 set -euo pipefail
@@ -288,11 +288,12 @@ copy_file() {
   ok "$(basename "$dst")"
 }
 
-# 훅: 관리 블록(# --- ai-worklog start/end ---)만 교체, 나머지 보존
+# 훅: 관리 블록(# --- worklog-for-claude start/end ---)만 교체, 나머지 보존
+# 하위 호환: 기존 ai-worklog 마커도 인식하여 교체
 install_file() {
   local src="$1" dst="$2"
-  local START="# --- ai-worklog start ---"
-  local END="# --- ai-worklog end ---"
+  local START="# --- worklog-for-claude start ---"
+  local END="# --- worklog-for-claude end ---"
 
   mkdir -p "$(dirname "$dst")"
 
@@ -310,6 +311,10 @@ dst_path     = sys.argv[2]
 start_marker = sys.argv[3]
 end_marker   = sys.argv[4]
 
+# 하위 호환: 기존 ai-worklog 마커
+OLD_START = "# --- ai-worklog start ---"
+OLD_END   = "# --- ai-worklog end ---"
+
 src = open(src_path, encoding='utf-8').read()
 dst = open(dst_path, encoding='utf-8').read()
 
@@ -323,12 +328,19 @@ if s_start == -1 or s_end == -1:
 
 managed_block = src[s_start : s_end + len(end_marker)]
 
+# 새 마커 먼저 탐색, 없으면 구 마커 탐색
 d_start = dst.find(start_marker)
 d_end   = dst.find(end_marker)
+d_end_len = len(end_marker)
+
+if d_start == -1 or d_end == -1:
+    d_start = dst.find(OLD_START)
+    d_end   = dst.find(OLD_END)
+    d_end_len = len(OLD_END)
 
 if d_start != -1 and d_end != -1:
     # 기존 관리 블록 교체
-    new_dst = dst[:d_start] + managed_block + dst[d_end + len(end_marker):]
+    new_dst = dst[:d_start] + managed_block + dst[d_end + d_end_len:]
 else:
     # 관리 블록 없음: exit 0 앞에 삽입 (exit 0이 있으면 append해도 실행 안 됨)
     import re
@@ -600,4 +612,4 @@ echo ""
 echo -e "  ${BOLD}$(t '재설정' 'Reconfigure')${NC}"
 echo "  • $PACKAGE_DIR/install.sh --reconfigure"
 echo ""
-ok "$(t 'ai-worklog 설치가 완료되었습니다!' 'ai-worklog installed successfully!')"
+ok "$(t 'worklog-for-claude 설치가 완료되었습니다!' 'worklog-for-claude installed successfully!')"

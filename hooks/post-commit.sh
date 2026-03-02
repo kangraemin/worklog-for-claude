@@ -22,7 +22,7 @@ AI_WORKLOG_DIR="${AI_WORKLOG_DIR:-$HOME/.claude}"
 WRITE_SCRIPT="$AI_WORKLOG_DIR/scripts/worklog-write.sh"
 
 if [ ! -f "$WRITE_SCRIPT" ]; then
-  # ai-worklog 미설치
+  # worklog-for-claude 미설치
   exit 0
 fi
 

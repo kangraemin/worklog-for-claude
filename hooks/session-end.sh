@@ -3,11 +3,11 @@
 
 INPUT=$(cat)
 
-# --- ai-worklog start ---
+# --- worklog-for-claude start ---
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id')
 COLLECT_FILE="$HOME/.claude/worklogs/.collecting/$SESSION_ID.jsonl"
 
 [ -f "$COLLECT_FILE" ] && rm -f "$COLLECT_FILE"
-# --- ai-worklog end ---
+# --- worklog-for-claude end ---
 
 exit 0

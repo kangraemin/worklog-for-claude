@@ -1,5 +1,5 @@
 #!/bin/bash
-# ai-worklog uninstaller
+# worklog-for-claude uninstaller
 # Usage: ./uninstall.sh [--global | --local | --target <dir>]
 
 set -euo pipefail
@@ -54,11 +54,11 @@ SETTINGS_FILE="$TARGET_DIR/settings.json"
 
 if [ ! -f "$SETTINGS_FILE" ]; then
   err "settings.json 없음: $SETTINGS_FILE"
-  err "ai-worklog가 설치되어 있지 않은 것 같습니다."
+  err "worklog-for-claude가 설치되어 있지 않은 것 같습니다."
   exit 1
 fi
 
-header "ai-worklog 제거"
+header "worklog-for-claude 제거"
 info "대상: $TARGET_DIR"
 
 # ── settings.json에서 훅 + 환경변수 제거 ────────────────────────────────────
@@ -201,6 +201,6 @@ fi
 
 # ── 완료 ─────────────────────────────────────────────────────────────────────
 header "제거 완료"
-ok "ai-worklog가 제거되었습니다."
+ok "worklog-for-claude가 제거되었습니다."
 info "settings.json의 NOTION_DB_ID, NOTION_TOKEN은 보존됩니다."
 info "필요하면 수동으로 삭제하세요."
