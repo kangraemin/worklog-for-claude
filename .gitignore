@@ -3,6 +3,7 @@ node_modules/
 __pycache__/
 *.pyc
 .DS_Store
+.idea/
 *.bak
 .worklogs/.migrated
 .version
