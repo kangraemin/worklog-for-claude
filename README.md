@@ -344,6 +344,17 @@ Regenerating your Notion integration token invalidates the old one. Update in tw
 Without step 2, API calls will fail with a permission error even though the token itself is valid.
 </details>
 
+<details>
+<summary><strong>Notion API says "not a database" error?</strong></summary>
+
+Your `NOTION_DB_ID` might contain a page ID instead of the actual database ID. To fix:
+1. Open your worklog database in Notion
+2. Copy the ID from the URL: `notion.so/<workspace>/<DB_ID>?v=...`
+3. Update `NOTION_DB_ID` in `~/.claude/settings.json` (or `<project>/.claude/settings.json`)
+
+The ID is the 32-character hex string before `?v=`.
+</details>
+
 ---
 
 ## Contributing
