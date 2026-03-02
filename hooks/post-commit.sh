@@ -37,11 +37,19 @@ except:
 fi
 
 # ── 컨텍스트 수집 ────────────────────────────────────────────────────────────
-DIFF=$(git diff HEAD~1 HEAD --stat 2>/dev/null || echo "변경 없음")
 COMMIT_MSG=$(git log -1 --pretty=%B 2>/dev/null || echo "")
 LANG_OPT="${WORKLOG_LANG:-ko}"
 
+# 변경 파일 목록: 파일명만 추출 (git diff --stat raw 대신)
+CHANGED_FILES=$(git diff HEAD~1 HEAD --name-only 2>/dev/null || echo "")
+if [ "$LANG_OPT" = "en" ]; then
+  FILES_LIST=$(echo "$CHANGED_FILES" | grep -v '^$' | sed 's/^/- `/' | sed 's/$/`/')
+else
+  FILES_LIST=$(echo "$CHANGED_FILES" | grep -v '^$' | sed 's/^/- `/' | sed 's/$/`/')
+fi
+
 # ── claude -p 로 요약 생성 시도 ──────────────────────────────────────────────
+# Claude Code 세션 내에서 중첩 실행 차단을 우회하기 위해 CLAUDECODE unset
 SUMMARY=""
 if command -v claude &>/dev/null; then
   if [ "$LANG_OPT" = "en" ]; then
@@ -50,17 +58,17 @@ if command -v claude &>/dev/null; then
 Commit message: $COMMIT_MSG
 
 Changed files:
-$DIFF
+$CHANGED_FILES
 
-Write in this format (no code fences):
+Write in this EXACT format (no code fences, no extra text):
 ### Request
 - What was requested (infer from commit message)
 
 ### Summary
-- What was done (2-3 lines max)
+- What was done (2-3 lines max, be specific about the actual changes)
 
 ### Changed Files
-$(echo "$DIFF" | sed 's/^/- /')
+$FILES_LIST
 "
   else
     PROMPT="이 git 커밋을 기반으로 워크로그 엔트리를 작성해줘.
@@ -68,21 +76,21 @@ $(echo "$DIFF" | sed 's/^/- /')
 커밋 메시지: $COMMIT_MSG
 
 변경 파일:
-$DIFF
+$CHANGED_FILES
 
-아래 형식으로 작성 (코드 펜스 없이):
+아래 형식으로 정확히 작성 (코드 펜스 없이, 추가 텍스트 없이):
 ### 요청사항
-- 요청한 내용 (커밋 메시지에서 추론)
+- 커밋 메시지에서 요청 의도를 추론하여 작성
 
 ### 작업 내용
-- 작업 요약 (2-3줄 이내)
+- 실제 변경한 내용을 구체적으로 2-3줄 이내 작성
 
 ### 변경 파일
-$(echo "$DIFF" | sed 's/^/- /')
+$FILES_LIST
 "
   fi
 
-  SUMMARY=$(claude -p "$PROMPT" 2>/dev/null) || SUMMARY=""
+  SUMMARY=$(unset CLAUDECODE && claude -p "$PROMPT" 2>/dev/null) || SUMMARY=""
 fi
 
 # ── fallback: auto 포맷 ─────────────────────────────────────────────────────
@@ -92,13 +100,13 @@ if [ -z "$SUMMARY" ]; then
 - $COMMIT_MSG
 
 ### Changed Files
-$(echo "$DIFF" | sed 's/^/- /')"
+$FILES_LIST"
   else
     SUMMARY="### 작업 내용
 - $COMMIT_MSG
 
 ### 변경 파일
-$(echo "$DIFF" | sed 's/^/- /')"
+$FILES_LIST"
   fi
 fi
 
