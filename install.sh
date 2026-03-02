@@ -183,7 +183,6 @@ data = {
     'title': [{'type': 'text', 'text': {'content': 'AI Worklog'}}],
     'properties': {
         'Title':    {'title': {}},
-        'Date':     {'date': {}},
         'DateTime': {'date': {}},
         'Project':  {'select': {'options': []}},
         'Tokens':   {'number': {'format': 'number'}},

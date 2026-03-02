@@ -236,8 +236,7 @@ All settings live in `settings.json` under `env`:
 | Column | Type | Description |
 |---|---|---|
 | Title | title | One-line work summary |
-| Date | date | Work date |
-| DateTime | date | Precise timestamp (for sorting) |
+| DateTime | date | Work timestamp |
 | Project | select | Repository name |
 | Tokens | number | Token delta |
 | Cost | number | Cost delta ($) |

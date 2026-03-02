@@ -87,18 +87,18 @@ cost     = round(float(sys.argv[5]), 3); cost     = cost     if cost     else No
 duration = int(sys.argv[6]);             duration = duration if duration else None
 tokens   = int(sys.argv[8]);             tokens   = tokens   if tokens   else None
 datetime = sys.argv[9] if sys.argv[9] else None
+date_val = sys.argv[3]
 data = {
     'parent': {'database_id': sys.argv[1]},
     'icon': {'type': 'emoji', 'emoji': '📖'},
     'properties': {
         'Title':    {'title': [{'text': {'content': sys.argv[2]}}]},
-        'Date':     {'date': {'start': sys.argv[3]}},
         'Project':  {'select': {'name': sys.argv[4]}},
         'Cost':     {'number': cost},
         'Duration': {'number': duration},
         'Model':    {'select': {'name': sys.argv[7]}},
         'Tokens':   {'number': tokens},
-        'DateTime': {'date': {'start': datetime}} if datetime else {'date': None},
+        'DateTime': {'date': {'start': datetime if datetime else date_val}},
     },
     'children': json.loads(sys.argv[10])
 }
