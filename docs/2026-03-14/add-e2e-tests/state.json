@@ -1,5 +1,5 @@
 {
-  "workflow_phase": "development",
+  "workflow_phase": "done",
   "mode": "normal",
   "planning": {
     "no_question_streak": 0
@@ -21,12 +21,12 @@
     },
     "3": {
       "name": "env-combinations",
-      "status": "pending",
+      "status": "done",
       "folder": "phase-3-env-combinations"
     }
   },
   "verification": {
-    "rounds_passed": 0
+    "rounds_passed": 3
   },
   "task_dir": "docs/2026-03-14/add-e2e-tests",
   "active_file": "docs/2026-03-14/add-e2e-tests/.active"
