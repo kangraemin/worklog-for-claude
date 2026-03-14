@@ -6,12 +6,12 @@
   },
   "plan_approved": true,
   "team_name": "",
-  "current_dev_phase": 1,
-  "current_step": 2,
+  "current_dev_phase": 2,
+  "current_step": 1,
   "dev_phases": {
     "1": {
       "name": "worklog-write",
-      "status": "pending",
+      "status": "done",
       "folder": "phase-1-worklog-write"
     },
     "2": {
