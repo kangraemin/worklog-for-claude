@@ -7,7 +7,7 @@
   "plan_approved": true,
   "team_name": "",
   "current_dev_phase": 1,
-  "current_step": 1,
+  "current_step": 2,
   "dev_phases": {
     "1": {
       "name": "worklog-write",

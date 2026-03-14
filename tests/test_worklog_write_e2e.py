@@ -270,6 +270,93 @@ class TestNotionBothMode(_WorklogWriteBase):
         self.assertIn("PROJECT=repo", log)
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# 3. 영어 출력 모드: WORKLOG_LANG=en
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TestEnglishOutput(_WorklogWriteBase):
+    """WORKLOG_LANG=en 모드: 토큰 섹션이 영어로 출력되는지 검증"""
+
+    _SUMMARY = "### Summary\n- Added search feature\n\n### Changed Files\n- `search.py`: add search endpoint"
+
+    def _run(self):
+        return self._run_worklog_write(
+            self._SUMMARY,
+            WORKLOG_DEST="git",
+            WORKLOG_LANG="en",
+        )
+
+    def _read_worklog(self):
+        self._run()
+        wl_files = glob.glob(os.path.join(self.repo, ".worklogs", "*.md"))
+        self.assertTrue(len(wl_files) > 0, "워크로그 파일이 생성되어야 함")
+        with open(wl_files[0]) as f:
+            return f.read()
+
+    def test_english_token_header(self):
+        content = self._read_worklog()
+        self.assertIn("### Token Usage", content)
+
+    def test_english_model_label(self):
+        content = self._read_worklog()
+        self.assertIn("- Model:", content)
+
+    def test_english_session_label(self):
+        content = self._read_worklog()
+        self.assertIn("- This session:", content)
+
+    def test_no_korean_headers(self):
+        content = self._read_worklog()
+        self.assertNotIn("토큰 사용량", content)
+        self.assertNotIn("모델:", content)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 4. Git 미추적 모드: WORKLOG_GIT_TRACK=false
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TestGitTrackFalse(_WorklogWriteBase):
+    """WORKLOG_GIT_TRACK=false 모드: 파일 생성되지만 git staging 안 됨"""
+
+    _SUMMARY = "### 작업 내용\n- 설정 변경\n\n### 변경 파일\n- `config.py`: 설정 수정"
+
+    def _run(self):
+        return self._run_worklog_write(
+            self._SUMMARY,
+            WORKLOG_DEST="git",
+            WORKLOG_GIT_TRACK="false",
+        )
+
+    def test_file_created_but_not_staged(self):
+        r = self._run()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        # 파일 존재 확인
+        wl_files = glob.glob(os.path.join(self.repo, ".worklogs", "*.md"))
+        self.assertTrue(len(wl_files) > 0, ".worklogs/*.md 파일이 존재해야 함")
+        # git staged에 없는지 확인
+        git_env = {
+            "HOME": self.tmp,
+            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+            "TERM": "dumb",
+            "GIT_CONFIG_NOSYSTEM": "1",
+        }
+        staged = subprocess.run(
+            ["git", "-C", self.repo, "diff", "--cached", "--name-only"],
+            capture_output=True, text=True, env=git_env,
+        )
+        self.assertNotIn(".worklogs/", staged.stdout)
+
+    def test_file_content_valid(self):
+        self._run()
+        wl_files = glob.glob(os.path.join(self.repo, ".worklogs", "*.md"))
+        self.assertTrue(len(wl_files) > 0)
+        with open(wl_files[0]) as f:
+            content = f.read()
+        self.assertIn("설정 변경", content)
+
+
 if __name__ == "__main__":
     result = unittest.main(verbosity=2, exit=False)
     import sys
