@@ -273,8 +273,8 @@ fi
 # ── 작성 시점 ────────────────────────────────────────────────────────────────
 header "$(t '워크로그 작성 시점' 'When to Write Worklogs')"
 
-echo "  1) each-commit — $(t '커밋할 때마다 자동 (추천)' 'automatically on each commit (recommended)')"
-echo "  2) manual      — $(t '/worklog 실행할 때만' 'only when running /worklog')"
+echo "  1) stop   — $(t '대화 종료 시 자동 (추천)' 'automatically on session end (recommended)')"
+echo "  2) manual — $(t '/worklog 실행할 때만' 'only when running /worklog')"
 echo ""
 printf "$(t '선택' 'Select') [1]: "
 read -r TIMING_CHOICE
@@ -282,13 +282,13 @@ TIMING_CHOICE="${TIMING_CHOICE:-1}"
 
 case "$TIMING_CHOICE" in
   2) WORKLOG_TIMING="manual" ;;
-  *) WORKLOG_TIMING="each-commit" ;;
+  *) WORKLOG_TIMING="stop" ;;
 esac
 
 # ── 자동 커밋 ─────────────────────────────────────────────────────────────────
 AUTO_COMMIT="false"
 
-if [ "$WORKLOG_TIMING" = "each-commit" ]; then
+if [ "$WORKLOG_TIMING" = "stop" ]; then
   header "$(t '자동 커밋' 'Auto-Commit')"
 
   info "$(t 'Claude 작업 완료 시 미커밋 변경사항을 자동 커밋합니다.' \

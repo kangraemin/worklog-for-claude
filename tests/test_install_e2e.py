@@ -141,7 +141,7 @@ class _Base(unittest.TestCase):
 class TestFreshGitInstall(_Base):
     """신규 설치: git-only, 글로벌 스코프"""
 
-    # 입력 순서: scope=global, dest=git, git-track=track, timing=each-commit, auto-commit=yes
+    # 입력 순서: scope=global, dest=git, git-track=track, timing=stop, auto-commit=yes
     _BASE = ["1", "1", "3", "1", "1", "1"]
 
     def test_exit_zero(self):
@@ -161,11 +161,11 @@ class TestFreshGitInstall(_Base):
         env = self._settings()["env"]
         self.assertEqual(env["WORKLOG_DEST"], "git")
         self.assertEqual(env["WORKLOG_GIT_TRACK"], "true")
-        self.assertEqual(env["WORKLOG_TIMING"], "each-commit")
+        self.assertEqual(env["WORKLOG_TIMING"], "stop")
         self.assertEqual(env["WORKLOG_LANG"], "ko")
 
     def test_settings_env_english_lang(self):
-        self._run(["2", "1", "3", "1", "1", "1"])  # lang=en, scope=global, git, track, each-commit, auto-commit
+        self._run(["2", "1", "3", "1", "1", "1"])  # lang=en, scope=global, git, track, stop, auto-commit
         self.assertEqual(self._settings()["env"]["WORKLOG_LANG"], "en")
 
     def test_ai_worklog_dir_points_to_target(self):
@@ -191,7 +191,7 @@ class TestFreshGitInstall(_Base):
         self.assertIn("설치가 완료", r.stdout)
 
     def test_git_ignore_mode(self):
-        # scope=global, dest=git, git-track=gitignore, timing=each-commit, auto-commit
+        # scope=global, dest=git, git-track=gitignore, timing=stop, auto-commit
         r = self._run(["1", "1", "3", "2", "1", "1"])
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self._settings()["env"]["WORKLOG_GIT_TRACK"], "false")
@@ -225,7 +225,7 @@ class TestFreshNotionInstallWithCreds(_Base):
         with open(os.path.join(d, "settings.json"), "w") as f:
             json.dump({"env": {"NOTION_DB_ID": "fake-db-abc"}}, f)
 
-    # 입력 순서: lang=ko, scope=global, dest=both, track=yes, timing=each-commit, auto-commit=yes
+    # 입력 순서: lang=ko, scope=global, dest=both, track=yes, timing=stop, auto-commit=yes
     # (Notion 토큰/DB_ID 사전 주입 → 프롬프트 없음)
     _BOTH = ["1", "1", "1", "1", "1", "1"]
 
@@ -287,13 +287,13 @@ class TestNotionInstallNoToken(_Base):
 
     def test_notion_only_no_token_exits_zero(self):
         """notion-only, 토큰 빈 값 → 정상 종료"""
-        # lang=ko, scope=global, dest=notion-only, token=empty, timing=each-commit, auto-commit=yes
+        # lang=ko, scope=global, dest=notion-only, token=empty, timing=stop, auto-commit=yes
         r = self._run(["1", "1", "2", "", "1", "1"])
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_both_no_token_exits_zero(self):
         """both, 토큰 빈 값 → 정상 종료"""
-        # lang=ko, scope=global, dest=both, token=empty, track=yes, timing=each-commit, auto-commit=yes
+        # lang=ko, scope=global, dest=both, token=empty, track=yes, timing=stop, auto-commit=yes
         r = self._run(["1", "1", "1", "", "1", "1", "1"])
         self.assertEqual(r.returncode, 0, r.stderr)
 
@@ -330,7 +330,7 @@ class TestReinstall(_Base):
         env = {
             "WORKLOG_DEST": "git",
             "WORKLOG_GIT_TRACK": "true",
-            "WORKLOG_TIMING": "each-commit",
+            "WORKLOG_TIMING": "stop",
             "AI_WORKLOG_DIR": d,
         }
         if extra_env:
@@ -522,7 +522,7 @@ class TestEnvFileHandling(_Base):
     def test_env_created_with_new_token(self):
         """토큰 입력 시 .env 파일 생성 및 토큰 기록"""
         self._seed_db_id()
-        # lang=ko, scope=global, dest=both, token=ntn_test_token_abcdef123456, track=yes, timing=each-commit, auto-commit=yes
+        # lang=ko, scope=global, dest=both, token=ntn_test_token_abcdef123456, track=yes, timing=stop, auto-commit=yes
         self._run(["1", "1", "1", "ntn_test_token_abcdef123456", "1", "1", "1"])
         env_path = os.path.join(self.tmp, ".claude", ".env")
         self.assertTrue(os.path.exists(env_path))
@@ -661,7 +661,7 @@ class TestSelfRepoDetection(_Base):
         subprocess.run(["git", "init", other], capture_output=True)
         subprocess.run(["git", "-C", other, "config", "user.email", "t@t.com"], capture_output=True)
         subprocess.run(["git", "-C", other, "config", "user.name", "T"], capture_output=True)
-        # lang=ko, scope=local, dest=git, track=yes, timing=each-commit, auto-commit=yes
+        # lang=ko, scope=local, dest=git, track=yes, timing=stop, auto-commit=yes
         r = self._run(["1", "2", "3", "1", "1", "1"], cwd=other)
         self.assertEqual(r.returncode, 0, r.stderr)
 
@@ -676,7 +676,7 @@ class TestEnglishInstall(_Base):
 
     def test_lang_en_set(self):
         """WORKLOG_LANG=en 설정됨"""
-        # lang=en, scope=global, dest=git, track=yes, timing=each-commit, auto-commit=yes
+        # lang=en, scope=global, dest=git, track=yes, timing=stop, auto-commit=yes
         r = self._run(["2", "1", "3", "1", "1", "1"])
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self._settings()["env"]["WORKLOG_LANG"], "en")
@@ -804,7 +804,7 @@ class TestStopHookCommand(_Base):
 
     def test_auto_commit_registers_command_type(self):
         """auto-commit=yes → Stop hook이 command type으로 등록"""
-        # lang=ko, scope=global, dest=git, track=yes, timing=each-commit, auto-commit=yes
+        # lang=ko, scope=global, dest=git, track=yes, timing=stop, auto-commit=yes
         r = self._run(["1", "1", "3", "1", "1", "1"])
         self.assertEqual(r.returncode, 0, r.stderr)
 

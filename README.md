@@ -99,7 +99,7 @@ The interactive wizard walks you through:
 1. **Language** — Korean (`ko`) or English (`en`)
 2. **Scope** — Global (`~/.claude/`) or project-local (`.claude/`)
 3. **Storage** — Markdown files, Notion, or both
-4. **Timing** — Auto on each commit or manual only
+4. **Timing** — Auto on session end or manual only
 5. **Auto-commit** — Optionally commit uncommitted changes when Claude stops
 
 That's it. Start committing and worklogs appear automatically.
@@ -148,7 +148,7 @@ Every `git commit` triggers a worklog entry. No action required.
 /worklog
 ```
 
-Writes a worklog entry from the current conversation context. Works regardless of `WORKLOG_TIMING` setting.
+Writes a worklog entry from the current conversation context. Works regardless of the `WORKLOG_TIMING` setting.
 
 ### Session finish
 
@@ -182,7 +182,7 @@ All settings live in `settings.json` under `env`:
 
 | Variable | Values | Default | Description |
 |---|---|---|---|
-| `WORKLOG_TIMING` | `each-commit` \| `manual` | `each-commit` | When to write worklogs |
+| `WORKLOG_TIMING` | `stop` \| `manual` | `stop` | When to write worklogs |
 | `WORKLOG_DEST` | `git` \| `notion` \| `notion-only` | `git` | Where to store worklogs |
 | `WORKLOG_GIT_TRACK` | `true` \| `false` | `true` | Track `.worklogs/` in git |
 | `WORKLOG_LANG` | `ko` \| `en` | `ko` | Entry language |

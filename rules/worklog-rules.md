@@ -13,7 +13,7 @@
 
 | 값 | 동작 |
 |---|---|
-| `each-commit` | git post-commit hook이 커밋마다 자동 작성 (기본) |
+| `stop` | 대화 종료 시 자동 작성 (기본) |
 | `manual` | `/worklog` 직접 실행할 때만 작성 |
 
 ## 저장 대상 (`WORKLOG_DEST`)
@@ -57,7 +57,7 @@
 
 ## 모드 체크
 
-- `WORKLOG_TIMING=manual`이면 자동 워크로그(post-commit hook)가 비활성화된다.
+- `WORKLOG_TIMING=manual`이면 자동 워크로그(stop hook)가 비활성화된다.
 - 단, 사용자가 직접 `/worklog`를 호출하면 `WORKLOG_TIMING` 값과 무관하게 항상 실행한다.
 
 ## 저장 위치

@@ -81,7 +81,7 @@ class _GitRepoBase(unittest.TestCase):
         # settings.json
         settings = {
             "env": {
-                "WORKLOG_TIMING": "each-commit",
+                "WORKLOG_TIMING": "stop",
                 "WORKLOG_DEST": "git",
                 "WORKLOG_GIT_TRACK": "true",
                 "WORKLOG_LANG": "ko",
@@ -113,7 +113,7 @@ class _GitRepoBase(unittest.TestCase):
         env = {
             "HOME": self.tmp,
             "AI_WORKLOG_DIR": self.ai_dir,
-            "WORKLOG_TIMING": "each-commit",
+            "WORKLOG_TIMING": "stop",
             "WORKLOG_DEST": "git",
             "WORKLOG_GIT_TRACK": "true",
             "WORKLOG_LANG": "ko",
@@ -408,7 +408,7 @@ class TestStopHookCommand(_GitRepoBase):
 
     def test_auto_commit_registers_command_type(self):
         """auto-commit=yes → Stop hook이 command type (stop.sh)으로 등록"""
-        # lang=ko, scope=global, dest=git, track=yes, timing=each-commit, auto-commit=yes
+        # lang=ko, scope=global, dest=git, track=yes, timing=stop, auto-commit=yes
         r = self._install(["1", "1", "3", "1", "1", "1"])
         self.assertEqual(r.returncode, 0, r.stderr)
 
