@@ -1,5 +1,5 @@
 #!/bin/bash
-# ai-worklog 자동 업데이트 체커
+# worklog-for-claude 자동 업데이트 체커
 # Usage: update-check.sh [--force] [--check-only]
 #   --force      : 24h throttle 무시하고 즉시 체크
 #   --check-only : 버전 확인만 (업데이트 안 함)
@@ -8,7 +8,7 @@ set -euo pipefail
 
 PYTHON=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
 
-REPO="kangraemin/ai-worklog"
+REPO="kangraemin/worklog-for-claude"
 RAW_BASE="https://raw.githubusercontent.com/$REPO/main"
 API_URL="https://api.github.com/repos/$REPO/commits/main"
 
@@ -136,7 +136,7 @@ for file in "${FILES[@]}"; do
 done
 
 if [ "$FAILED" -gt 0 ]; then
-  echo "ai-worklog: 업데이트 일부 실패 ($FAILED개). 다음 실행 시 재시도합니다." >&2
+  echo "worklog-for-claude: 업데이트 일부 실패 ($FAILED개). 다음 실행 시 재시도합니다." >&2
   exit 0
 fi
 
@@ -156,4 +156,4 @@ fi
 # ── 버전 파일 갱신 ───────────────────────────────────────────────────────────
 echo "$LATEST_SHA" > "$VERSION_FILE"
 
-echo "ai-worklog $INSTALLED_SHA → $LATEST_SHA 업데이트 완료 ($UPDATED개 파일)"
+echo "worklog-for-claude $INSTALLED_SHA → $LATEST_SHA 업데이트 완료 ($UPDATED개 파일)"

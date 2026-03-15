@@ -23,12 +23,6 @@ def encode_project_path(cwd: str) -> str:
     return cwd.replace("/", "-").replace(".", "-")
 
 
-def find_latest_jsonl(project_dir):
-    pattern = os.path.join(project_dir, "*.jsonl")
-    files = sorted(glob.glob(pattern), key=os.path.getmtime, reverse=True)
-    return files[0] if files else None
-
-
 def sum_duration_ms(jsonl_path: str, after_iso: str) -> int:
     total_ms = 0
     with open(jsonl_path) as f:
@@ -61,12 +55,16 @@ def main():
         print("0,0")
         sys.exit(0)
 
-    jsonl_path = find_latest_jsonl(project_dir)
-    if not jsonl_path:
+    pattern = os.path.join(project_dir, "*.jsonl")
+    jsonl_files = glob.glob(pattern)
+
+    if not jsonl_files:
         print("0,0")
         sys.exit(0)
 
-    total_ms = sum_duration_ms(jsonl_path, after_iso)
+    total_ms = 0
+    for jsonl_path in jsonl_files:
+        total_ms += sum_duration_ms(jsonl_path, after_iso)
     total_sec = total_ms / 1000
     total_min = round(total_ms / 60000)
 

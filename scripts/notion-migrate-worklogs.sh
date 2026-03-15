@@ -102,26 +102,26 @@ def parse_token_section(text):
     }
     for line in text.split('\n'):
         line = line.strip().lstrip('- ')
-        if line.startswith('모델:'):
+        if line.startswith('모델:') or line.startswith('Model:'):
             result['model'] = line.split(':', 1)[1].strip()
-        elif line.startswith('이번 작업:'):
-            m = re.search(r'([\d,]+)\s*토큰\s*/\s*\$([\d.]+)', line)
+        elif line.startswith('이번 작업:') or line.startswith('This session:'):
+            m = re.search(r'([\d,]+)\s*(토큰|tokens)\s*[·/]\s*\$([\d.]+)', line)
             if m:
                 result['tokens'] = parse_number(m.group(1))
-                result['cost']   = float(m.group(2))
+                result['cost']   = float(m.group(3))
             else:
                 m2 = re.search(r'\$([\d.]+)', line)
                 if m2:
                     result['cost'] = float(m2.group(1))
-        elif line.startswith('소요 시간:'):
+        elif line.startswith('소요 시간:') or line.startswith('Duration:'):
             m = re.search(r'(\d+)', line)
             if m:
                 result['duration'] = int(m.group(1))
-        elif line.startswith('일일 누적:'):
-            m = re.search(r'([\d,]+)\s*토큰\s*/\s*\$([\d.]+)', line)
+        elif line.startswith('일일 누적:') or line.startswith('Daily total:'):
+            m = re.search(r'([\d,]+)\s*(토큰|tokens)\s*[·/]\s*\$([\d.]+)', line)
             if m:
                 result['daily_tokens'] = parse_number(m.group(1))
-                result['daily_cost']   = float(m.group(2))
+                result['daily_cost']   = float(m.group(3))
     return result
 
 def parse_entry(date, project, entry_text):
@@ -149,9 +149,9 @@ def parse_entry(date, project, entry_text):
     if cur_name is not None:
         sections[cur_name] = '\n'.join(cur_lines).strip()
 
-    # 타이틀: 요청사항 > 작업 내용 첫 bullet
+    # 타이틀: 요청사항/Request > 작업 내용/Summary 첫 bullet
     title = f"{date} {time_str}"
-    for sec in ['요청사항', '작업 내용']:
+    for sec in ['요청사항', 'Request', '작업 내용', 'Summary']:
         for line in sections.get(sec, '').split('\n'):
             line = line.strip().lstrip('- ')
             if line:
@@ -160,21 +160,31 @@ def parse_entry(date, project, entry_text):
         if title != f"{date} {time_str}":
             break
 
-    # 토큰 파싱
-    token_info = parse_token_section(sections.get('토큰 사용량', ''))
+    # 토큰 파싱 (한국어/영어 헤더 모두 지원)
+    token_text = sections.get('토큰 사용량', '') or sections.get('Token Usage', '')
+    token_info = parse_token_section(token_text)
 
     # 전달할 content 구성 (일일 누적 / 소요 시간 라인 제거)
     def clean_token_section(text):
         lines = [l for l in text.split('\n')
-                 if not re.search(r'일일 누적|소요 시간', l)]
+                 if not re.search(r'일일 누적|소요 시간|Daily total|Duration', l)]
         return '\n'.join(lines).strip()
 
+    # 한국어/영어 섹션 매핑
+    section_pairs = [
+        ('요청사항', 'Request'),
+        ('작업 내용', 'Summary'),
+        ('변경 파일', 'Changed Files'),
+        ('토큰 사용량', 'Token Usage'),
+    ]
+
     parts = []
-    for sec in ['요청사항', '작업 내용', '변경 파일', '토큰 사용량']:
+    for sec_ko, sec_en in section_pairs:
+        sec = sec_ko if sec_ko in sections else sec_en
         raw = sections.get(sec, '').strip()
         if not raw:
             continue
-        cleaned = clean_token_section(raw) if sec == '토큰 사용량' else raw
+        cleaned = clean_token_section(raw) if sec in ('토큰 사용량', 'Token Usage') else raw
         if cleaned:
             parts.append(f"### {sec}\n{cleaned}")
     content = '\n\n'.join(parts)

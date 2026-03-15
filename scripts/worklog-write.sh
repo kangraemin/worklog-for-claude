@@ -80,7 +80,7 @@ WORKLOG_LANG="${WORKLOG_LANG:-ko}"
 PROJECT_CWD=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 PROJECT="${PROJECT:-$(basename "$PROJECT_CWD")}"
 TIMESTAMP=$(date +%H:%M)
-DATETIME=$(date +%Y-%m-%dT%H:%M:00+09:00)
+DATETIME=$(date +%Y-%m-%dT%H:%M:00%z)
 
 # ── 스냅샷 읽기 ──────────────────────────────────────────────────────────────
 SNAPSHOT_DIR="$HOME/.claude/worklogs"

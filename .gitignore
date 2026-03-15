@@ -4,6 +4,9 @@ __pycache__/
 *.pyc
 .DS_Store
 *.bak
-.worklogs/.migrated
+.worklogs/
 .version
 .version-checked
+.claude/
+uninstall.sh
+update.sh
