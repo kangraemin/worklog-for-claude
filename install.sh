@@ -529,9 +529,12 @@ def remove_old_stop_hooks():
     if not hooks['Stop']:
         hooks.pop('Stop', None)
 
-# stop hook은 더 이상 block하지 않음 — 기존 stop hook 제거만 수행
 remove_old_stop_hooks()
-print(f'  ✓ Old stop hooks removed (no longer blocking on session end)')
+if timing == 'stop':
+    add_command_hook('Stop', f'{target_dir}/hooks/stop.sh', 30, False)
+    print(f'  ✓ Stop hook registered: stop.sh')
+else:
+    print(f'  · WORKLOG_TIMING=manual — Stop hook skipped')
 
 # 저장
 with open(settings_file, 'w', encoding='utf-8') as f:
