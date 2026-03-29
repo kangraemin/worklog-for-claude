@@ -122,10 +122,11 @@ class TestStopPendingMarker(_HookBase):
         self.assertIn("/worklog", result["reason"])
 
     def test_shows_commit_msg(self):
-        """reason에 커밋 메시지 포함"""
+        """reason이 /worklog 실행을 요청하는 메시지"""
         r = self._run_stop_hook(self.stdin)
         result = json.loads(r.stdout)
-        self.assertIn("feat: test feature", result["reason"])
+        # stop.sh는 커밋 메시지 대신 /worklog 실행 안내
+        self.assertIn("/worklog", result["reason"])
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -134,57 +135,37 @@ class TestStopPendingMarker(_HookBase):
 
 
 class TestStopUncommittedChanges(_HookBase):
-    """staged but uncommitted 변경사항이 있으면 block"""
+    """미커밋 변경사항 유무와 무관하게 stop.sh는 항상 block"""
 
     def setUp(self):
         super().setUp()
-        self.repo_abs = os.path.realpath(self.repo)
-
-        # dirty 파일 생성 + stage
-        filepath = os.path.join(self.repo, "dirty.txt")
-        with open(filepath, "w") as f:
-            f.write("dirty content\n")
-        subprocess.run(
-            ["git", "-C", self.repo, "add", "dirty.txt"],
-            capture_output=True,
-            env=self._env(),
-        )
-
-        self.stdin = {"cwd": self.repo_abs, "stop_hook_active": False}
+        dirty = os.path.join(self.repo, "dirty.txt")
+        with open(dirty, "w") as f:
+            f.write("dirty\n")
+        subprocess.run(["git", "-C", self.repo, "add", "dirty.txt"], capture_output=True)
+        self.stdin = {"cwd": self.repo, "stop_hook_active": False}
 
     def test_block_decision(self):
-        """미커밋 변경이 있으면 decision=block"""
+        """미커밋 변경사항이 있어도 decision=block"""
         r = self._run_stop_hook(self.stdin)
         self.assertEqual(r.returncode, 0)
         result = json.loads(r.stdout)
         self.assertEqual(result["decision"], "block")
 
-    def test_finish_reason(self):
-        """reason에 /finish 포함"""
+    def test_worklog_reason(self):
+        """reason에 /worklog 포함"""
         r = self._run_stop_hook(self.stdin)
         result = json.loads(r.stdout)
-        self.assertIn("/finish", result["reason"])
+        self.assertIn("/worklog", result["reason"])
 
-    def test_clean_repo_passes(self):
-        """클린 상태에서는 block하지 않음"""
-        # dirty 파일 제거 (unstage + delete)
-        subprocess.run(
-            ["git", "-C", self.repo, "reset", "HEAD", "dirty.txt"],
-            capture_output=True,
-            env=self._env(),
-        )
+    def test_clean_repo_also_blocks(self):
+        """클린 상태에서도 stop.sh는 block (WORKLOG_TIMING=stop이면)"""
+        # dirty 파일 제거
+        subprocess.run(["git", "-C", self.repo, "reset", "HEAD", "dirty.txt"], capture_output=True, env=self._env())
         os.remove(os.path.join(self.repo, "dirty.txt"))
-
         r = self._run_stop_hook(self.stdin)
-        self.assertEqual(r.returncode, 0)
-        # stdout가 비어있거나 JSON이 아님
-        stdout = r.stdout.strip()
-        if stdout:
-            try:
-                result = json.loads(stdout)
-                self.assertNotEqual(result.get("decision"), "block")
-            except json.JSONDecodeError:
-                pass  # JSON이 아니면 block이 아닌 것
+        result = json.loads(r.stdout)
+        self.assertEqual(result["decision"], "block")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

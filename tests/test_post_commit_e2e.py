@@ -374,111 +374,180 @@ class TestPostCommitManualMode(_GitRepoBase):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 5. Stop hook prompt type 설정 검증
+# on-commit.sh 동작 검증 (PostToolUse Bash hook)
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-class TestStopHookCommand(_GitRepoBase):
-    """Stop hook이 command type (stop.sh)으로 정상 등록/교체되는지 검증"""
+class TestOnCommitHookBehavior(unittest.TestCase):
+    """on-commit.sh: git commit 감지 → decision:block 반환"""
 
-    def _install(self, inputs):
-        """install.sh 실행"""
-        bin_dir = os.path.join(self.tmp, "bin")
-        os.makedirs(bin_dir, exist_ok=True)
-        # claude 스텁
-        with open(os.path.join(bin_dir, "claude"), "w") as f:
-            f.write("#!/bin/bash\necho stub\n")
-        os.chmod(os.path.join(bin_dir, "claude"), 0o755)
+    def setUp(self):
+        if not shutil.which("jq"):
+            self.skipTest("jq not found")
+        self.hook = os.path.join(PACKAGE_DIR, "hooks", "on-commit.sh")
 
+    def _run_hook(self, command: str, timing: str = "stop") -> subprocess.CompletedProcess:
+        payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
+        env = {**os.environ, "WORKLOG_TIMING": timing}
+        return subprocess.run(
+            ["bash", self.hook],
+            input=payload,
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=5,
+        )
+
+    def test_git_commit_returns_block(self):
+        """git commit 명령 → decision:block"""
+        r = self._run_hook('git commit -m "feat: test"')
+        self.assertEqual(r.returncode, 0)
+        result = json.loads(r.stdout)
+        self.assertEqual(result["decision"], "block")
+
+    def test_block_reason_contains_worklog(self):
+        """block reason에 /worklog 포함"""
+        r = self._run_hook('git commit -m "test"')
+        result = json.loads(r.stdout)
+        self.assertIn("/worklog", result["reason"])
+
+    def test_git_push_no_block(self):
+        """git push → block 없음 (exit 0, no output)"""
+        r = self._run_hook("git push")
+        self.assertEqual(r.returncode, 0)
+        self.assertEqual(r.stdout.strip(), "")
+
+    def test_git_pull_no_block(self):
+        """git pull → block 없음"""
+        r = self._run_hook("git pull")
+        self.assertEqual(r.returncode, 0)
+        self.assertEqual(r.stdout.strip(), "")
+
+    def test_unrelated_bash_command_no_block(self):
+        """git과 무관한 bash 명령은 block 없음"""
+        r = self._run_hook("echo hello world")
+        self.assertEqual(r.returncode, 0)
+        self.assertEqual(r.stdout.strip(), "")
+
+    def test_manual_timing_no_block(self):
+        """WORKLOG_TIMING=manual → block 없음"""
+        r = self._run_hook('git commit -m "test"', timing="manual")
+        self.assertEqual(r.returncode, 0)
+        self.assertEqual(r.stdout.strip(), "")
+
+    def test_git_commit_amend_triggers_block(self):
+        """git commit --amend도 감지"""
+        r = self._run_hook("git commit --amend --no-edit")
+        result = json.loads(r.stdout)
+        self.assertEqual(result["decision"], "block")
+
+    def test_multiline_with_git_commit(self):
+        """멀티라인 명령에서 git commit 감지"""
+        cmd = 'git add -A && git commit -m "feat: test" && git push'
+        r = self._run_hook(cmd)
+        result = json.loads(r.stdout)
+        self.assertEqual(result["decision"], "block")
+
+
+class TestCommitDocCheckHookBehavior(unittest.TestCase):
+    """commit-doc-check.sh: git commit 후 PROJECT.md 업데이트 체크"""
+
+    def setUp(self):
+        if not shutil.which("jq"):
+            self.skipTest("jq not found")
+        self.hook = os.path.join(PACKAGE_DIR, "hooks", "commit-doc-check.sh")
+        self.tmp = tempfile.mkdtemp(prefix="wl_doccheck_")
+        # git repo 초기화
+        git_env = {"HOME": self.tmp, "PATH": os.environ.get("PATH", ""), "GIT_CONFIG_NOSYSTEM": "1"}
+        subprocess.run(["git", "init", self.tmp], capture_output=True, check=True, env=git_env)
+        subprocess.run(["git", "-C", self.tmp, "config", "user.email", "t@t.com"], capture_output=True, env=git_env)
+        subprocess.run(["git", "-C", self.tmp, "config", "user.name", "T"], capture_output=True, env=git_env)
+        # PROJECT.md 생성
+        with open(os.path.join(self.tmp, "PROJECT.md"), "w") as f:
+            f.write("# Project\n")
+        subprocess.run(["git", "-C", self.tmp, "add", "PROJECT.md"], capture_output=True, env=git_env)
+        subprocess.run(["git", "-C", self.tmp, "commit", "-m", "init"], capture_output=True, env=git_env)
+        self._git_env = git_env
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _run_hook(self, command: str, threshold: int = 3) -> subprocess.CompletedProcess:
+        payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
         env = {
             **os.environ,
             "HOME": self.tmp,
-            "PATH": f'{bin_dir}:{os.environ.get("PATH", "")}',
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "PROJECT_DOC_CHECK_INTERVAL": str(threshold),
         }
         return subprocess.run(
-            ["bash", os.path.join(PACKAGE_DIR, "install.sh")],
-            input="\n".join(inputs) + "\n",
-            capture_output=True, text=True, env=env,
-            cwd=self.repo, timeout=30,
+            ["bash", self.hook],
+            input=payload,
+            capture_output=True,
+            text=True,
+            cwd=self.tmp,
+            env=env,
+            timeout=5,
         )
 
-    def _settings(self):
-        with open(os.path.join(self.tmp, ".claude", "settings.json")) as f:
-            return json.load(f)
+    def _make_commits(self, n: int):
+        """더미 커밋 n개 생성"""
+        git_env = {**self._git_env, "HOME": self.tmp}
+        for i in range(n):
+            f = os.path.join(self.tmp, f"dummy_{i}.txt")
+            with open(f, "w") as fp:
+                fp.write(f"commit {i}\n")
+            subprocess.run(["git", "-C", self.tmp, "add", f], capture_output=True, env=git_env)
+            subprocess.run(["git", "-C", self.tmp, "commit", "-m", f"chore: dummy {i}"], capture_output=True, env=git_env)
 
-    def test_auto_commit_registers_command_type(self):
-        """auto-commit=yes → Stop hook이 command type (stop.sh)으로 등록"""
-        # lang=ko, scope=global, dest=git, track=yes, timing=stop, auto-commit=yes
-        r = self._install(["1", "1", "3", "1", "1", "1"])
-        self.assertEqual(r.returncode, 0, r.stderr)
+    def test_git_push_no_output(self):
+        """git push → 출력 없음"""
+        r = self._run_hook("git push")
+        self.assertEqual(r.returncode, 0)
+        self.assertEqual(r.stdout.strip(), "")
 
-        cfg = self._settings()
-        stop_hooks = cfg.get("hooks", {}).get("Stop", [])
-        self.assertTrue(len(stop_hooks) > 0, "Stop hook should be registered")
+    def test_no_project_md_no_output(self):
+        """PROJECT.md 없는 프로젝트 → 출력 없음"""
+        os.remove(os.path.join(self.tmp, "PROJECT.md"))
+        r = self._run_hook('git commit -m "test"')
+        self.assertEqual(r.returncode, 0)
+        self.assertEqual(r.stdout.strip(), "")
 
-        command_hooks = [
-            h for g in stop_hooks for h in g.get("hooks", [])
-            if h.get("type") == "command" and "stop.sh" in h.get("command", "")
-        ]
-        self.assertTrue(len(command_hooks) > 0, "Stop hook should be command type with stop.sh")
-        self.assertEqual(command_hooks[0].get("timeout"), 10)
+    def test_under_threshold_no_message(self):
+        """threshold 미달 커밋 수 → 메시지 없음"""
+        self._make_commits(1)  # 1 commit, threshold=3
+        r = self._run_hook('git commit -m "test"', threshold=3)
+        self.assertEqual(r.stdout.strip(), "")
 
-    def test_auto_commit_no_prompt_stop_hook(self):
-        """auto-commit=yes에서 prompt type stop hook은 없어야 함"""
-        r = self._install(["1", "1", "3", "1", "1", "1"])
-        self.assertEqual(r.returncode, 0, r.stderr)
+    def test_over_threshold_shows_message(self):
+        """threshold 초과 시 메시지 출력"""
+        self._make_commits(3)  # threshold=3 → 3 >= 3 → 메시지 출력
+        r = self._run_hook('git commit -m "test"', threshold=3)
+        self.assertIn("PROJECT.md", r.stdout)
 
-        cfg = self._settings()
-        stop_hooks = cfg.get("hooks", {}).get("Stop", [])
-        prompt_hooks = [
-            h for g in stop_hooks for h in g.get("hooks", [])
-            if h.get("type") == "prompt"
-        ]
-        self.assertEqual(len(prompt_hooks), 0, "No prompt type stop hook should exist")
-
-    def test_no_auto_commit_no_stop_hook(self):
-        """auto-commit=no → Stop hook 미등록"""
-        r = self._install(["1", "1", "3", "1", "1", "2"])  # auto-commit=no
-        self.assertEqual(r.returncode, 0, r.stderr)
-
-        cfg = self._settings()
-        self.assertNotIn("Stop", cfg.get("hooks", {}))
-
-    def test_upgrade_replaces_prompt_with_command(self):
-        """기존 prompt type stop hook → command type으로 교체"""
-        d = os.path.join(self.tmp, ".claude")
-        os.makedirs(d, exist_ok=True)
-        old_cfg = {
-            "env": {},
-            "hooks": {
-                "Stop": [{"hooks": [{"type": "prompt", "prompt": "/finish", "timeout": 120}]}]
-            },
+    def test_stdin_json_parsing(self):
+        """stdin JSON에서 command 올바르게 파싱됨 (환경변수 방식 아님)"""
+        env = {
+            **os.environ,
+            "HOME": self.tmp,
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "PROJECT_DOC_CHECK_INTERVAL": "1",
         }
-        with open(os.path.join(d, "settings.json"), "w") as f:
-            json.dump(old_cfg, f)
-
-        r = self._install(["1", "1", "3", "1", "1", "1"])
-        self.assertEqual(r.returncode, 0, r.stderr)
-
-        cfg = self._settings()
-        stop_hooks = cfg.get("hooks", {}).get("Stop", [])
-        all_hooks = [h for g in stop_hooks for h in g.get("hooks", [])]
-
-        # prompt type 없어야 함
-        prompt_hooks = [h for h in all_hooks if h.get("type") == "prompt"]
-        self.assertEqual(len(prompt_hooks), 0, "Old prompt hook should be removed")
-
-        # command type 있어야 함
-        command_hooks = [h for h in all_hooks if h.get("type") == "command" and "stop.sh" in h.get("command", "")]
-        self.assertTrue(len(command_hooks) > 0, "New command hook should exist")
-
-    def test_finish_command_installed(self):
-        """finish.md 커맨드 파일이 설치됨"""
-        r = self._install(["1", "1", "3", "1", "1", "1"])
-        self.assertEqual(r.returncode, 0, r.stderr)
-
-        finish_path = os.path.join(self.tmp, ".claude", "commands", "finish.md")
-        self.assertTrue(os.path.exists(finish_path), "finish.md should be installed")
+        env.pop("TOOL_INPUT", None)
+        payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": 'git commit -m "test"'}})
+        self._make_commits(2)
+        r = subprocess.run(
+            ["bash", self.hook],
+            input=payload,
+            capture_output=True,
+            text=True,
+            cwd=self.tmp,
+            env=env,
+            timeout=5,
+        )
+        self.assertEqual(r.returncode, 0)
+        # threshold=1, 2 commits → 메시지 있어야 함
+        self.assertIn("PROJECT.md", r.stdout)
 
 
 if __name__ == "__main__":
