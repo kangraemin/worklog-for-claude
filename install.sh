@@ -435,16 +435,17 @@ header "$(t 'settings.json 설정' 'Updating settings.json')"
 
 SETTINGS_FILE="$TARGET_DIR/settings.json"
 
-$PYTHON - "$SETTINGS_FILE" "$TARGET_DIR" "$WORKLOG_TIMING" "$WORKLOG_DEST" "$WORKLOG_GIT_TRACK" "${NOTION_DB_ID:-}" "$WORKLOG_LANG" "$AUTO_COMMIT" <<'PYEOF'
+$PYTHON - "$SETTINGS_FILE" "$TARGET_DIR" "$WORKLOG_TIMING" "$WORKLOG_DEST" "$WORKLOG_GIT_TRACK" "${NOTION_DB_ID:-}" "$WORKLOG_LANG" "$AUTO_COMMIT" "${DOC_CHECK_INTERVAL:-5}" <<'PYEOF'
 import json, sys, os
 
-settings_file = sys.argv[1]
-target_dir    = sys.argv[2]
-timing        = sys.argv[3]
-dest          = sys.argv[4]
-git_track     = sys.argv[5]
-notion_db_id  = sys.argv[6]
-worklog_lang  = sys.argv[7]
+settings_file      = sys.argv[1]
+target_dir         = sys.argv[2]
+timing             = sys.argv[3]
+dest               = sys.argv[4]
+git_track          = sys.argv[5]
+notion_db_id       = sys.argv[6]
+worklog_lang       = sys.argv[7]
+doc_check_interval = sys.argv[8] if len(sys.argv) > 8 else '5'
 auto_commit   = sys.argv[8]
 
 # 기존 설정 읽기
@@ -462,6 +463,7 @@ env['WORKLOG_LANG']      = worklog_lang
 env['AI_WORKLOG_DIR']    = target_dir
 if notion_db_id:
     env['NOTION_DB_ID'] = notion_db_id
+env['PROJECT_DOC_CHECK_INTERVAL'] = doc_check_interval
 
 # ── hooks 머지 ──
 hooks = cfg.setdefault('hooks', {})
@@ -469,6 +471,7 @@ hooks = cfg.setdefault('hooks', {})
 # 훅 정의: (이벤트, command, timeout, async)
 hook_defs = [
     ('PostToolUse',  f'{target_dir}/hooks/worklog.sh',            5,  True),
+    ('PostToolUse',  f'{target_dir}/hooks/commit-doc-check.sh',  5,  False),
     ('SessionStart', f'{target_dir}/scripts/update-check.sh',     15, True),
     ('SessionEnd',   f'{target_dir}/hooks/session-end.sh',        15, False),
 ]
@@ -592,6 +595,74 @@ else
   fi
 fi
 
+# ── MCP 서버 설정 ─────────────────────────────────────────────────────────────
+header "$(t 'MCP 서버 설정' 'MCP Server Setup')"
+
+DOC_CHECK_INTERVAL="5"
+
+if ! command -v uv &>/dev/null; then
+  warn "$(t 'uv가 없습니다. MCP 설정을 건너뜁니다.' 'uv not found. Skipping MCP setup.')"
+  info "$(t 'uv 설치: https://docs.astral.sh/uv/' 'Install uv: https://docs.astral.sh/uv/')"
+else
+  printf "$(t 'PROJECT.md 업데이트 체크 주기 (커밋 몇 개마다?)' 'How many commits between PROJECT.md update checks?') [5]: "
+  read -r _DOC_INTERVAL
+  DOC_CHECK_INTERVAL="${_DOC_INTERVAL:-5}"
+
+  echo ""
+  echo "  $(t 'MCP 클라이언트 선택' 'Select MCP client'):"
+  echo "  1) Claude Code (~/.claude/settings.json)"
+  echo "  2) Cursor (~/.cursor/mcp.json)"
+  echo "  3) Claude Desktop"
+  echo "  4) $(t '전부' 'All')"
+  echo "  5) $(t '건너뜀' 'Skip')"
+  printf "$(t '선택' 'Select') [1]: "
+  read -r MCP_CHOICE
+  MCP_CHOICE="${MCP_CHOICE:-1}"
+
+  setup_mcp_client() {
+    local config_file="$1"
+    local client_name="$2"
+    mkdir -p "$(dirname "$config_file")"
+    $PYTHON - "$config_file" "$DOC_CHECK_INTERVAL" <<'PYEOF'
+import json, sys, os
+config_file = sys.argv[1]
+interval = sys.argv[2]
+cfg = {}
+if os.path.exists(config_file):
+    try:
+        with open(config_file) as f:
+            cfg = json.load(f)
+    except Exception:
+        cfg = {}
+servers = cfg.setdefault('mcpServers', {})
+servers['worklog-for-claude'] = {
+    'command': 'uvx',
+    'args': ['worklog-for-claude'],
+    'env': {'PROJECT_DOC_CHECK_INTERVAL': interval}
+}
+with open(config_file, 'w') as f:
+    json.dump(cfg, f, indent=2, ensure_ascii=False)
+    f.write('\n')
+PYEOF
+    ok "$(t 'MCP 설정 완료' 'MCP configured') ($client_name): $config_file"
+  }
+
+  if [[ "$MCP_CHOICE" =~ ^[145]$ ]]; then
+    setup_mcp_client "$HOME/.claude/settings.json" "Claude Code"
+  fi
+  if [[ "$MCP_CHOICE" =~ ^[245]$ ]]; then
+    setup_mcp_client "$HOME/.cursor/mcp.json" "Cursor"
+  fi
+  if [[ "$MCP_CHOICE" =~ ^[345]$ ]]; then
+    setup_mcp_client "$HOME/Library/Application Support/Claude/claude_desktop_config.json" "Claude Desktop"
+  fi
+
+  if [ "$MCP_CHOICE" = "5" ]; then
+    info "$(t 'MCP 설정 건너뜀. 나중에 수동으로 추가하세요.' 'MCP setup skipped. Add manually later.')"
+    info "  uvx worklog-for-claude"
+  fi
+fi
+
 # ── 완료 ─────────────────────────────────────────────────────────────────────
 header "$(t '설치 완료' 'Installation Complete')"
 
@@ -607,6 +678,7 @@ if [ -n "$NOTION_DB_ID" ]; then
 echo "  ├─ Notion DB: $NOTION_DB_ID"
 fi
 echo "  ├─ $(t '훅' 'Hooks'):      PostToolUse, SessionEnd"
+echo "  ├─ MCP:        uvx worklog-for-claude (interval: ${DOC_CHECK_INTERVAL:-5})"
 echo "  ├─ $(t 'Git Hook' 'Git Hook'):  post-commit ($(t '터미널 커밋 시 워크로그' 'worklog on terminal commits'))"
 echo "  └─ $(t '자동 커밋' 'Auto-Commit'): $([ "$AUTO_COMMIT" = "true" ] && t '사용 (/finish)' 'Enabled (/finish)' || t '사용 안 함' 'Disabled')"
 
