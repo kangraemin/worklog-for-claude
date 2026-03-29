@@ -406,6 +406,7 @@ install_file "$PACKAGE_DIR/hooks/session-end.sh"       "$TARGET_DIR/hooks/sessio
 copy_file    "$PACKAGE_DIR/hooks/post-commit.sh"       "$TARGET_DIR/hooks/post-commit.sh"
 copy_file    "$PACKAGE_DIR/.claude/hooks/commit-doc-check.sh" "$TARGET_DIR/hooks/commit-doc-check.sh"
 install_file "$PACKAGE_DIR/hooks/stop.sh"              "$TARGET_DIR/hooks/stop.sh"
+install_file "$PACKAGE_DIR/hooks/on-commit.sh"         "$TARGET_DIR/hooks/on-commit.sh"
 
 # commands (항상 덮어쓰기)
 copy_file "$PACKAGE_DIR/commands/worklog.md"          "$TARGET_DIR/commands/worklog.md"
@@ -427,6 +428,7 @@ chmod +x "$TARGET_DIR/hooks/session-end.sh"
 chmod +x "$TARGET_DIR/hooks/post-commit.sh"
 chmod +x "$TARGET_DIR/hooks/commit-doc-check.sh"
 chmod +x "$TARGET_DIR/hooks/stop.sh"
+chmod +x "$TARGET_DIR/hooks/on-commit.sh"
 
 # ── 버전 SHA 저장 ─────────────────────────────────────────────────────────────
 INSTALLED_SHA=$(git -C "$PACKAGE_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -489,15 +491,16 @@ env['PROJECT_DOC_CHECK_INTERVAL'] = doc_check_interval
 # ── hooks 머지 ──
 hooks = cfg.setdefault('hooks', {})
 
-# 훅 정의: (이벤트, command, timeout, async)
+# 훅 정의: (이벤트, command, timeout, async, matcher)
 hook_defs = [
-    ('PostToolUse',  f'{target_dir}/hooks/worklog.sh',            5,  True),
-    ('PostToolUse',  f'{target_dir}/hooks/commit-doc-check.sh',  5,  False),
-    ('SessionStart', f'{target_dir}/scripts/update-check.sh',     15, True),
-    ('SessionEnd',   f'{target_dir}/hooks/session-end.sh',        15, False),
+    ('PostToolUse',  f'{target_dir}/hooks/worklog.sh',           5,  True,  None),
+    ('PostToolUse',  f'{target_dir}/hooks/on-commit.sh',         5,  False, 'Bash'),
+    ('PostToolUse',  f'{target_dir}/hooks/commit-doc-check.sh',  5,  False, None),
+    ('SessionStart', f'{target_dir}/scripts/update-check.sh',    15, True,  None),
+    ('SessionEnd',   f'{target_dir}/hooks/session-end.sh',       15, False, None),
 ]
 
-def add_command_hook(event, command, timeout, is_async):
+def add_command_hook(event, command, timeout, is_async, matcher=None):
     event_hooks = hooks.setdefault(event, [])
     for group in event_hooks:
         for h in group.get('hooks', []):
@@ -507,11 +510,14 @@ def add_command_hook(event, command, timeout, is_async):
     new_hook = {'type': 'command', 'command': command, 'timeout': timeout}
     if is_async:
         new_hook['async'] = True
-    event_hooks.append({'hooks': [new_hook]})
+    entry = {'hooks': [new_hook]}
+    if matcher:
+        entry['matcher'] = matcher
+    event_hooks.append(entry)
     print(f'  ✓ {event} hook added: {os.path.basename(command)}')
 
-for event, command, timeout, is_async in hook_defs:
-    add_command_hook(event, command, timeout, is_async)
+for event, command, timeout, is_async, matcher in hook_defs:
+    add_command_hook(event, command, timeout, is_async, matcher)
 
 # ── Stop hook 제거 (기존 설치본 정리용) ──
 STOP_HOOK_MARKERS = ['stop.sh', '/finish']
