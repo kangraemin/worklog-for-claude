@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "worklog-mcp"
+name = "worklog-for-claude"
 version = "0.1.0"
 description = "MCP server for worklog and project documentation management"
 readme = "README.md"
@@ -20,7 +20,7 @@ dev = [
 ]
 
 [project.scripts]
-worklog-mcp = "worklog_mcp.server:main"
+worklog-for-claude = "worklog_mcp.server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/worklog_mcp"]
