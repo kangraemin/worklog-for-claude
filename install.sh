@@ -401,10 +401,11 @@ copy_file "$PACKAGE_DIR/scripts/update-check.sh"            "$TARGET_DIR/scripts
 copy_file "$PACKAGE_DIR/scripts/worklog-write.sh"           "$TARGET_DIR/scripts/worklog-write.sh"
 
 # hooks (관리 블록만 교체)
-install_file "$PACKAGE_DIR/hooks/worklog.sh"      "$TARGET_DIR/hooks/worklog.sh"
-install_file "$PACKAGE_DIR/hooks/session-end.sh"  "$TARGET_DIR/hooks/session-end.sh"
-copy_file    "$PACKAGE_DIR/hooks/post-commit.sh"  "$TARGET_DIR/hooks/post-commit.sh"
-install_file "$PACKAGE_DIR/hooks/stop.sh"         "$TARGET_DIR/hooks/stop.sh"
+install_file "$PACKAGE_DIR/hooks/worklog.sh"           "$TARGET_DIR/hooks/worklog.sh"
+install_file "$PACKAGE_DIR/hooks/session-end.sh"       "$TARGET_DIR/hooks/session-end.sh"
+copy_file    "$PACKAGE_DIR/hooks/post-commit.sh"       "$TARGET_DIR/hooks/post-commit.sh"
+copy_file    "$PACKAGE_DIR/.claude/hooks/commit-doc-check.sh" "$TARGET_DIR/hooks/commit-doc-check.sh"
+install_file "$PACKAGE_DIR/hooks/stop.sh"              "$TARGET_DIR/hooks/stop.sh"
 
 # commands (항상 덮어쓰기)
 copy_file "$PACKAGE_DIR/commands/worklog.md"          "$TARGET_DIR/commands/worklog.md"
@@ -424,6 +425,7 @@ chmod +x "$TARGET_DIR/scripts/worklog-write.sh"
 chmod +x "$TARGET_DIR/hooks/worklog.sh"
 chmod +x "$TARGET_DIR/hooks/session-end.sh"
 chmod +x "$TARGET_DIR/hooks/post-commit.sh"
+chmod +x "$TARGET_DIR/hooks/commit-doc-check.sh"
 chmod +x "$TARGET_DIR/hooks/stop.sh"
 
 # ── 버전 SHA 저장 ─────────────────────────────────────────────────────────────
