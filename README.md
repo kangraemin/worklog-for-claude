@@ -7,7 +7,7 @@
 <p align="center">
   <strong>Automatic work logging for <a href="https://claude.com/claude-code">Claude Code</a> sessions</strong>
   <br />
-  Track what you built, how long it took, and what it cost — on every commit.
+  Track what you built, how long it took, and what it cost — automatically.
 </p>
 
 <p align="center">
@@ -30,6 +30,7 @@
 - [Configuration](#configuration)
 - [Storage Modes](#storage-modes)
 - [Notion Integration](#notion-integration)
+- [MCP Server](#mcp-server)
 - [Architecture](#architecture)
 - [FAQ](#faq)
 - [Contributing](#contributing)
@@ -46,7 +47,7 @@ When you're deep in a Claude Code session, it's easy to lose track of what you'v
 | Manually write what you did | AI-generated commit summaries |
 | Guess how long tasks took | Precise Claude processing time |
 | No idea what it cost | Token usage and cost per session |
-| Forget to log entirely | Runs on every commit — zero effort |
+| Forget to log entirely | Triggered on every commit — zero effort |
 
 ---
 
@@ -69,9 +70,10 @@ When you're deep in a Claude Code session, it's easy to lose track of what you'v
 
 - **Non-destructive install** — Preserves existing git hooks via chaining.
 - **Bilingual** — Full Korean and English support (`WORKLOG_LANG`).
-- **Self-updating** — Automatic version check on session start, or manual with `/update-worklog`.
+- **Self-updating** — Automatic version check on `SessionStart`, or manual with `/update-worklog`.
 - **Global or local** — Install once for all projects, or per-repo.
 - **Bulk migration** — Move existing markdown worklogs to Notion with `/migrate-worklogs`.
+- **MCP server** — Cross-client support (Claude Code, Cursor, Claude Desktop) with PROJECT.md auto-management.
 
 ---
 
@@ -85,6 +87,7 @@ When you're deep in a Claude Code session, it's easy to lose track of what you'v
 | `python3` | Token/cost calculation |
 | `curl` | Notion API, update checks |
 | `jq` *(optional)* | JSON processing (session cleanup) |
+| `uv` *(optional)* | MCP server support |
 
 ### Install
 
@@ -98,23 +101,32 @@ The interactive wizard walks you through:
 
 1. **Language** — Korean (`ko`) or English (`en`)
 2. **Scope** — Global (`~/.claude/`) or project-local (`.claude/`)
-3. **Storage** — Markdown files, Notion, or both
-4. **Timing** — Auto on session end or manual only
-5. **Auto-commit** — Optionally commit uncommitted changes when Claude stops
+3. **Storage** — Notion + local files, Notion only, or local files only
+4. **Notion setup** — Token input, database auto-creation (if Notion mode selected)
+5. **Git tracking** — Track `.worklogs/` in git or add to `.gitignore`
+6. **Timing** — Auto on commit or manual only
+7. **MCP setup** — Client selection and PROJECT.md check interval (if `uv` installed)
 
 That's it. Start committing and worklogs appear automatically.
 
+> **Tip:** Run `./install.sh --reconfigure` to change settings after initial install.
+
 ### Uninstall
 
-```bash
-./uninstall.sh
-```
+worklog-for-claude installs hooks, scripts, and commands into your `~/.claude/` (global) or `.claude/` (local) directory. To remove:
 
-Removes hooks, scripts, and config. **Preserves** `.worklogs/` data and Notion credentials.
+1. Re-run `./install.sh` to see where files were installed (check the summary output)
+2. Remove the installed files: hooks (`hooks/`), scripts (`scripts/`), commands (`commands/`), rules (`rules/`)
+3. Remove worklog entries from `hooks` in `settings.json`
+4. Remove worklog env vars (`WORKLOG_*`, `AI_WORKLOG_DIR`, `NOTION_DB_ID`) from `settings.json`
+
+Your `.worklogs/` data and Notion credentials (`.env`) are preserved.
 
 ---
 
 ## How It Works
+
+### Outside Claude Code (terminal `git commit`)
 
 ```
 git commit
@@ -127,10 +139,21 @@ git commit
                  └─ notion-worklog.sh          (sync to Notion)
 ```
 
+### Inside Claude Code session
+
+```
+git commit (inside Claude Code)
+  └─ post-commit hook detects CLAUDECODE env
+       └─ writes pending marker → exits immediately (never blocks)
+            └─ on-commit.sh (PostToolUse) detects the commit
+                 └─ blocks and requests /worklog
+                      └─ worklog-write.sh (same pipeline as above)
+```
+
 Works with **any commit method**:
-- Direct `git commit`
+- Direct `git commit` in terminal
 - Claude Code `/commit` skill
-- Auto-commit via Stop hook
+- `git commit` inside a Claude Code session (via `on-commit.sh`)
 
 The post-commit hook always exits `0` — worklog failures **never block** your commits.
 
@@ -188,6 +211,8 @@ All settings live in `settings.json` under `env`:
 | `WORKLOG_GIT_TRACK` | `true` \| `false` | `true` | Track `.worklogs/` in git |
 | `WORKLOG_LANG` | `ko` \| `en` | `ko` | Entry language |
 | `NOTION_DB_ID` | UUID | — | Notion database ID |
+| `AI_WORKLOG_DIR` | path | `~/.claude` | Installation directory (set by installer) |
+| `PROJECT_DOC_CHECK_INTERVAL` | number | `5` | Commits between PROJECT.md update checks (MCP) |
 
 ---
 
@@ -217,7 +242,7 @@ All settings live in `settings.json` under `env`:
 
 ### Token Usage
 - Model: claude-sonnet-4-6
-- This session: $1.089
+- This session: 52,340 tokens · $1.089
 ```
 
 > Section headers follow `WORKLOG_LANG` — Korean or English.
@@ -229,8 +254,10 @@ All settings live in `settings.json` under `env`:
 ### Setup
 
 1. Create an integration at [notion.so/my-integrations](https://www.notion.so/my-integrations)
-2. Add `NOTION_TOKEN=secret_...` to `~/.claude/.env`
-3. Run `./install.sh` — the wizard auto-creates the database
+2. Run `./install.sh` and select a Notion storage mode — the wizard prompts for your token (`ntn_...` or `secret_...`) and auto-creates the database
+3. Share the created database with your integration (Share → Add connections)
+
+> You can also add `NOTION_TOKEN=ntn_...` to `~/.claude/.env` before running the installer — it will be auto-detected.
 
 ### Database Schema
 
@@ -248,6 +275,43 @@ Content body is auto-converted from markdown to Notion blocks (`###` → heading
 
 ---
 
+## MCP Server
+
+The `mcp/` directory contains a Python MCP server that extends worklog-for-claude to any MCP-compatible client — Claude Code, Cursor, and Claude Desktop.
+
+### What it adds
+
+- **Worklog** — write and read worklogs via MCP tools
+- **PROJECT.md** — auto-creates and maintains a project documentation file
+- **Gap detection** — compares recent git commits to PROJECT.md and surfaces what's missing
+
+### Install
+
+Requires `uv`. The installer sets this up automatically, or configure manually:
+
+```bash
+cd worklog-for-claude/mcp
+uv sync
+```
+
+Add to your MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "worklog-for-claude": {
+      "command": "uvx",
+      "args": ["worklog-for-claude"],
+      "env": { "PROJECT_DOC_CHECK_INTERVAL": "5" }
+    }
+  }
+}
+```
+
+See `mcp/README.md` for client-specific configuration examples.
+
+---
+
 ## Architecture
 
 ### Directory Structure
@@ -255,25 +319,34 @@ Content body is auto-converted from markdown to Notion blocks (`###` → heading
 ```
 worklog-for-claude/
 ├── install.sh              # Interactive installer
-├── uninstall.sh            # Clean removal
 ├── hooks/
 │   ├── post-commit.sh      # Git post-commit → worklog generation
 │   ├── worklog.sh          # PostToolUse → tool usage collection
+│   ├── on-commit.sh        # PostToolUse (Bash) → git commit detection
+│   ├── commit-doc-check.sh # PostToolUse → PROJECT.md update check
 │   ├── session-end.sh      # SessionEnd → cleanup
-│   └── stop.sh             # Stop → prompt /finish
+│   └── stop.sh             # Stop → prompt /worklog (legacy, removed by installer)
 ├── git-hooks/
-│   └── post-commit          # Git hook wrapper
+│   └── post-commit         # Git hook wrapper
 ├── scripts/
-│   ├── worklog-write.sh     # Core: file + Notion + snapshot
-│   ├── token-cost.py        # Token/cost delta from JSONL
-│   ├── duration.py          # Work duration from JSONL
-│   ├── notion-worklog.sh    # Notion API page creation
+│   ├── worklog-write.sh    # Core: file + Notion + snapshot
+│   ├── token-cost.py       # Token/cost delta from JSONL
+│   ├── duration.py         # Work duration from JSONL
+│   ├── notion-worklog.sh   # Notion API page creation
+│   ├── notion-create-db.sh # Notion database auto-creation
 │   ├── notion-migrate-worklogs.sh  # Bulk .md → Notion
-│   └── update-check.sh     # Version check against remote
-├── commands/                # Claude Code skill definitions
-├── rules/                   # Workspace rules
-├── tests/                   # End-to-end test suite
-└── docs/                    # Documentation assets
+│   └── update-check.sh    # Version check against remote
+├── commands/               # Claude Code skill definitions
+│   ├── worklog.md          # /worklog
+│   ├── finish.md           # /finish
+│   ├── migrate-worklogs.md # /migrate-worklogs
+│   └── update-worklog.md   # /update-worklog
+├── rules/                  # Workspace rules
+├── mcp/                    # MCP server (Python, FastMCP)
+│   ├── src/worklog_mcp/    # Server + tools
+│   └── tests/              # MCP test suite
+├── tests/                  # End-to-end test suite
+└── docs/                   # Documentation assets
 ```
 
 ### Hooks
@@ -282,8 +355,12 @@ worklog-for-claude/
 |---|---|---|
 | Git `post-commit` | `hooks/post-commit.sh` | Generates worklog entry on each commit |
 | `PostToolUse` | `hooks/worklog.sh` | Collects tool usage into per-session JSONL |
+| `PostToolUse` (Bash) | `hooks/on-commit.sh` | Detects `git commit` and requests `/worklog` |
+| `PostToolUse` | `hooks/commit-doc-check.sh` | Checks if PROJECT.md needs updating |
+| `SessionStart` | `scripts/update-check.sh` | Version check against GitHub (24h throttle) |
 | `SessionEnd` | `hooks/session-end.sh` | Cleans up session collection file |
-| `Stop` | `hooks/stop.sh` | Prompts to commit uncommitted changes |
+
+> The installer removes any existing Stop hooks for worklog — `PostToolUse` (`on-commit.sh`) handles commit detection instead.
 
 ### Token Calculation
 
