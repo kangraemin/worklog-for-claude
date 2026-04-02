@@ -570,6 +570,7 @@ EXPECTED_SCRIPTS = {
 }
 EXPECTED_COMMANDS = {
     "worklog.md", "finish.md", "migrate-worklogs.md", "update-worklog.md",
+    "worklog-config.md",
 }
 EXPECTED_RULES = {
     "worklog-rules.md", "auto-commit-rules.md",
@@ -713,6 +714,79 @@ class TestUninstallFull(_LifecycleBase):
         pre_hooks = cfg.get("hooks", {}).get("PreToolUse", [])
         cmds = [h.get("command", "") for g in pre_hooks for h in g.get("hooks", [])]
         self.assertIn("/some/other-hook.sh", cmds, "other hooks should be preserved")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 18. 설정 변경 후 실제 동작 검증 (worklog-config 시뮬레이션)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TestConfigChange(_LifecycleBase):
+    """설치 → settings.json 변경 → 커밋 → 변경된 동작 확인"""
+
+    def setUp(self):
+        super().setUp()
+        # 전역 설치 (git + track + each-commit + ko)
+        r = self._install(["1", "1", "3", "1", "1", "5", "5"])
+        self.assertEqual(r.returncode, 0, f"install failed: {r.stderr}")
+        self.target = os.path.join(self.tmp, ".claude")
+        self._patch_notion_stub(self.target)
+
+    def _update_setting(self, key: str, value: str):
+        """settings.json env를 직접 수정 (worklog-config가 하는 것과 동일)"""
+        settings_path = os.path.join(self.target, "settings.json")
+        with open(settings_path) as f:
+            cfg = json.load(f)
+        cfg.setdefault("env", {})[key] = value
+        with open(settings_path, "w") as f:
+            json.dump(cfg, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+
+    def test_timing_change_to_manual(self):
+        """each-commit → manual 변경 후 커밋 → .worklogs 미생성"""
+        self._update_setting("WORKLOG_TIMING", "manual")
+        self._make_commit("after manual", env=self._commit_env(self.target, WORKLOG_TIMING="manual"))
+        self.assertEqual(len(self._worklogs_files()), 0, ".worklogs should not be created in manual mode")
+
+    def test_timing_change_back_to_each_commit(self):
+        """manual → each-commit 변경 후 커밋 → .worklogs 생성"""
+        # 먼저 manual로 변경
+        self._update_setting("WORKLOG_TIMING", "manual")
+        self._make_commit("manual commit", env=self._commit_env(self.target, WORKLOG_TIMING="manual"))
+        self.assertEqual(len(self._worklogs_files()), 0)
+
+        # 다시 each-commit으로 변경
+        self._update_setting("WORKLOG_TIMING", "each-commit")
+        self._make_commit("back to auto", env=self._commit_env(self.target))
+        self.assertTrue(len(self._worklogs_files()) > 0, ".worklogs should be created after switching back")
+
+    def test_dest_change_to_notion_only(self):
+        """git → notion-only 변경 후 커밋 → .worklogs 로컬 파일 미생성"""
+        self._update_setting("WORKLOG_DEST", "notion-only")
+        self._make_commit("notion only", env=self._commit_env(self.target, WORKLOG_DEST="notion-only"))
+        self.assertEqual(len(self._worklogs_files()), 0, "no local file in notion-only mode")
+
+    def test_git_track_change_to_false(self):
+        """true → false 변경 후 커밋 → 파일 생성되지만 unstaged"""
+        self._update_setting("WORKLOG_GIT_TRACK", "false")
+        self._make_commit("track false", env=self._commit_env(self.target, WORKLOG_GIT_TRACK="false"))
+        self.assertTrue(len(self._worklogs_files()) > 0, "file should still be created")
+        # unstaged 확인
+        r = subprocess.run(
+            ["git", "-C", self.repo, "diff", "--cached", "--name-only"],
+            capture_output=True, text=True, env=self._git_env,
+        )
+        self.assertNotIn(".worklogs", r.stdout, "should not be staged")
+
+    def test_lang_change_to_en(self):
+        """ko → en 변경 후 커밋 → Token Usage 영어 헤더"""
+        self._update_setting("WORKLOG_LANG", "en")
+        self._make_commit("english", env=self._commit_env(self.target, WORKLOG_LANG="en"))
+        files = self._worklogs_files()
+        if files:
+            content = open(os.path.join(self._worklogs_dir(), files[0])).read()
+            self.assertIn("Token Usage", content, "should have English header")
+            self.assertNotIn("토큰 사용량", content, "should not have Korean header")
 
 
 if __name__ == "__main__":

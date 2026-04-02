@@ -40,6 +40,7 @@ EXPECTED_FILES = [
     "commands/worklog.md",
     "commands/migrate-worklogs.md",
     "commands/finish.md",
+    "commands/worklog-config.md",
     "rules/worklog-rules.md",
     "rules/auto-commit-rules.md",
 ]

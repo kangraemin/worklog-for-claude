@@ -67,6 +67,7 @@ WORKLOG_FILES=(
   "commands/finish.md"
   "commands/migrate-worklogs.md"
   "commands/update-worklog.md"
+  "commands/worklog-config.md"
   # rules
   "rules/worklog-rules.md"
   "rules/auto-commit-rules.md"
