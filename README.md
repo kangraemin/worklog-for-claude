@@ -92,10 +92,10 @@ When you're deep in a Claude Code session, it's easy to lose track of what you'v
 ### Install
 
 ```bash
-git clone https://github.com/kangraemin/worklog-for-claude.git
-cd worklog-for-claude
-./install.sh
+bash <(curl -fsSL https://raw.githubusercontent.com/kangraemin/worklog-for-claude/main/install.sh)
 ```
+
+For local install (specific project only), run the same command from your project directory and select scope: **Local (2)**.
 
 The interactive wizard walks you through:
 
@@ -109,18 +109,15 @@ The interactive wizard walks you through:
 
 That's it. Start committing and worklogs appear automatically.
 
-> **Tip:** Run `./install.sh --reconfigure` to change settings after initial install.
+> **Tip:** Run the installer again with `--reconfigure` to change settings after initial install.
 
 ### Uninstall
 
-worklog-for-claude installs hooks, scripts, and commands into your `~/.claude/` (global) or `.claude/` (local) directory. To remove:
+```bash
+./uninstall.sh
+```
 
-1. Re-run `./install.sh` to see where files were installed (check the summary output)
-2. Remove the installed files: hooks (`hooks/`), scripts (`scripts/`), commands (`commands/`), rules (`rules/`)
-3. Remove worklog entries from `hooks` in `settings.json`
-4. Remove worklog env vars (`WORKLOG_*`, `AI_WORKLOG_DIR`, `NOTION_DB_ID`) from `settings.json`
-
-Your `.worklogs/` data and Notion credentials (`.env`) are preserved.
+Removes hooks, scripts, commands, and config from `settings.json`. **Preserves** `.worklogs/` data and `.env` credentials.
 
 ---
 
@@ -254,7 +251,7 @@ All settings live in `settings.json` under `env`:
 ### Setup
 
 1. Create an integration at [notion.so/my-integrations](https://www.notion.so/my-integrations)
-2. Run `./install.sh` and select a Notion storage mode — the wizard prompts for your token (`ntn_...` or `secret_...`) and auto-creates the database
+2. Run the installer and select a Notion storage mode — the wizard prompts for your token (`ntn_...` or `secret_...`) and auto-creates the database
 3. Share the created database with your integration (Share → Add connections)
 
 > You can also add `NOTION_TOKEN=ntn_...` to `~/.claude/.env` before running the installer — it will be auto-detected.
@@ -318,7 +315,8 @@ See `mcp/README.md` for client-specific configuration examples.
 
 ```
 worklog-for-claude/
-├── install.sh              # Interactive installer
+├── install.sh              # Interactive installer (supports curl pipe)
+├── uninstall.sh            # Clean removal
 ├── hooks/
 │   ├── post-commit.sh      # Git post-commit → worklog generation
 │   ├── worklog.sh          # PostToolUse → tool usage collection

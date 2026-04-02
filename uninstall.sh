@@ -1,259 +1,218 @@
 #!/bin/bash
-# ai-bouncer uninstall
-# Usage: bash uninstall.sh
+# worklog-for-claude uninstaller
+# Usage: ./uninstall.sh
 
 set -euo pipefail
 
+RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-RED='\033[0;31m'
+CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
 ok()     { echo -e "${GREEN}✓${NC}  $*"; }
 info()   { echo -e "${BLUE}ℹ${NC}  $*"; }
 warn()   { echo -e "${YELLOW}⚠${NC}  $*"; }
-err()    { echo -e "${RED}✗${NC}  $*"; }
-header() { echo -e "\n${BOLD}── $* ──${NC}\n"; }
+err()    { echo -e "${RED}✗${NC}  $*" >&2; }
+header() { echo -e "\n${BOLD}${CYAN}── $* ──${NC}\n"; }
 
-header "ai-bouncer 제거"
+PYTHON=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
 
-# 설치 범위 감지: 로컬(.claude/ai-bouncer/) → 글로벌(~/.claude/ai-bouncer/) 순서
+# ── 설치 범위 감지 ──────────────────────────────────────────────────────────
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
 TARGET_DIR=""
+SCOPE=""
 
-# 1. 로컬 설치 확인
-if [ -n "$REPO_ROOT" ] && [ -f "$REPO_ROOT/.claude/ai-bouncer/manifest.json" ]; then
+# 로컬 설치 확인
+if [ -n "$REPO_ROOT" ] && [ -f "$REPO_ROOT/.claude/hooks/post-commit.sh" ]; then
   TARGET_DIR="$REPO_ROOT/.claude"
+  SCOPE="local"
 fi
 
-# 2. 글로벌 설치 확인 (하위 호환)
-if [ -z "$TARGET_DIR" ] && [ -f "$HOME/.claude/ai-bouncer/manifest.json" ]; then
+# 전역 설치 확인
+if [ -z "$TARGET_DIR" ] && [ -f "$HOME/.claude/hooks/post-commit.sh" ]; then
   TARGET_DIR="$HOME/.claude"
+  SCOPE="global"
 fi
 
 if [ -z "$TARGET_DIR" ]; then
-  err "설치된 ai-bouncer를 찾을 수 없습니다."
+  err "worklog-for-claude installation not found."
   exit 1
 fi
 
-BOUNCER_DATA_DIR="$TARGET_DIR/ai-bouncer"
-MANIFEST="$BOUNCER_DATA_DIR/manifest.json"
-info "매니페스트에서 설치 파일 목록 읽는 중... ($MANIFEST)"
+header "worklog-for-claude 제거 ($SCOPE: $TARGET_DIR)"
 
-python3 - "$MANIFEST" "$TARGET_DIR" <<'PYEOF'
-import json, os, sys
+# ── 설치된 파일 삭제 ────────────────────────────────────────────────────────
+header "파일 제거"
 
-manifest_path = sys.argv[1]
-target_dir = sys.argv[2]
+WORKLOG_FILES=(
+  # scripts
+  "scripts/worklog-write.sh"
+  "scripts/notion-worklog.sh"
+  "scripts/notion-migrate-worklogs.sh"
+  "scripts/notion-create-db.sh"
+  "scripts/token-cost.py"
+  "scripts/duration.py"
+  "scripts/update-check.sh"
+  # hooks
+  "hooks/post-commit.sh"
+  "hooks/worklog.sh"
+  "hooks/on-commit.sh"
+  "hooks/commit-doc-check.sh"
+  "hooks/session-end.sh"
+  "hooks/stop.sh"
+  # commands
+  "commands/worklog.md"
+  "commands/finish.md"
+  "commands/migrate-worklogs.md"
+  "commands/update-worklog.md"
+  # rules
+  "rules/worklog-rules.md"
+  "rules/auto-commit-rules.md"
+  # git-hooks
+  "git-hooks/post-commit"
+  # version
+  ".version"
+)
 
-try:
-    with open(manifest_path) as f:
-        manifest = json.load(f)
-except (json.JSONDecodeError, FileNotFoundError) as e:
-    print(f"  ⚠ 매니페스트 읽기 실패: {e}")
-    print("  파일 삭제를 건너뛰고 설정 정리를 계속합니다.")
-    sys.exit(0)
-
-removed = 0
-for rel_path in manifest.get('files', []):
-    abs_path = os.path.join(target_dir, rel_path)
-    if os.path.exists(abs_path):
-        os.remove(abs_path)
-        print(f"  삭제: {rel_path}")
-        removed += 1
-
-print(f"\n  {removed}개 파일 삭제됨 (백업 파일은 유지)")
-PYEOF
-
-# Stop hook에서 ai-bouncer 블록 제거 (settings.json 정리 전에 수행)
-remove_bouncer_block() {
-  local file="$1"
-  [ -f "$file" ] || return 0
-  python3 - "$file" <<'PYEOF'
-import sys
-f = sys.argv[1]
-START = "# --- ai-bouncer start ---"
-END = "# --- ai-bouncer end ---"
-content = open(f, encoding='utf-8').read()
-s = content.find(START)
-e = content.find(END)
-if s == -1 or e == -1:
-    sys.exit(0)
-before = content[:s].rstrip('\n')
-after = content[e + len(END):].lstrip('\n')
-new = (before + '\n\n' + after).strip('\n') + '\n'
-open(f, 'w', encoding='utf-8').write(new)
-print(f"  {f}: ai-bouncer 블록 제거됨")
-PYEOF
-}
-
-for settings_file in "$HOME/.claude/settings.json" "$TARGET_DIR/settings.json"; do
-  [ -f "$settings_file" ] || continue
-  python3 -c "
-import json, sys
-cfg = json.load(open(sys.argv[1]))
-for g in cfg.get('hooks', {}).get('Stop', []):
-    for h in g.get('hooks', []):
-        cmd = h.get('command', '')
-        if cmd: print(cmd)
-" "$settings_file" 2>/dev/null | while IFS= read -r hook_path; do
-    remove_bouncer_block "$hook_path"
-  done
+REMOVED=0
+for rel_path in "${WORKLOG_FILES[@]}"; do
+  full_path="$TARGET_DIR/$rel_path"
+  if [ -f "$full_path" ]; then
+    rm -f "$full_path"
+    # .bak 파일도 제거
+    rm -f "${full_path}.bak"
+    ok "  $rel_path"
+    REMOVED=$((REMOVED + 1))
+  fi
 done
 
-# settings.json에서 hook 제거
+info "$REMOVED files removed"
+
+# ── settings.json에서 worklog hooks/env 제거 ────────────────────────────────
+header "settings.json 정리"
+
 SETTINGS_FILE="$TARGET_DIR/settings.json"
+
 if [ -f "$SETTINGS_FILE" ]; then
-  python3 - "$SETTINGS_FILE" <<'PYEOF'
-import json, sys
+  $PYTHON - "$SETTINGS_FILE" <<'PYEOF'
+import json, sys, os, re
 
 settings_file = sys.argv[1]
 
-with open(settings_file) as f:
-    cfg = json.load(f)
+try:
+    with open(settings_file, encoding='utf-8') as f:
+        cfg = json.load(f)
+except Exception:
+    print("  ⚠ settings.json 읽기 실패")
+    sys.exit(0)
 
-import os as _os
-
-# hooks.json에서 동적으로 읽기, fallback으로 하드코딩
-_hooks_json = _os.path.join(_os.path.dirname(settings_file), 'hooks', 'hooks.json')
-if _os.path.exists(_hooks_json):
-    _manifest = json.load(open(_hooks_json))
-    BOUNCER_HOOKS = set()
-    for _entries in _manifest.values():
-        for _e in _entries:
-            BOUNCER_HOOKS.add(_e.get('file', ''))
-else:
-    BOUNCER_HOOKS = {
-        'plan-gate.sh', 'bash-gate.sh', 'bash-audit.sh',
-        'doc-reminder.sh', 'completion-gate.sh',
-        'subagent-track.sh', 'subagent-cleanup.sh',
-    }
-
-def is_bouncer_hook(group):
-    for h in group.get('hooks', []):
-        cmd = h.get('command', '')
-        # 파일명 기준 매칭 (경로 무관)
-        import os
-        if os.path.basename(cmd) in BOUNCER_HOOKS:
-            return True
-    return False
+# hooks 제거: worklog 관련 command 패턴
+WORKLOG_MARKERS = [
+    'worklog.sh', 'on-commit.sh', 'commit-doc-check.sh',
+    'session-end.sh', 'stop.sh', 'update-check.sh', 'post-commit.sh'
+]
 
 hooks = cfg.get('hooks', {})
-BOUNCER_HOOKS.add('update-check.sh')
+for event in list(hooks.keys()):
+    event_hooks = hooks[event]
+    filtered = []
+    for group in event_hooks:
+        group_hooks = group.get('hooks', [])
+        remaining = [
+            h for h in group_hooks
+            if not any(m in h.get('command', '') for m in WORKLOG_MARKERS)
+        ]
+        if remaining:
+            group['hooks'] = remaining
+            filtered.append(group)
+    if filtered:
+        hooks[event] = filtered
+    else:
+        del hooks[event]
 
-for hook_type in ['PreToolUse', 'PostToolUse', 'Stop', 'SubagentStart', 'SubagentStop', 'SessionStart']:
-    if hook_type in hooks:
-        original = hooks[hook_type]
-        filtered = [g for g in original if not is_bouncer_hook(g)]
-        if len(filtered) != len(original):
-            hooks[hook_type] = filtered
-            print(f"  {hook_type} hook 제거됨")
+print("  ✓ worklog hooks removed")
 
-# 빈 hook 타입 정리
-hooks = {k: v for k, v in hooks.items() if v}
-if hooks:
-    cfg['hooks'] = hooks
-else:
-    cfg.pop('hooks', None)
+# env 제거
+WORKLOG_ENV_KEYS = [
+    'WORKLOG_TIMING', 'WORKLOG_DEST', 'WORKLOG_GIT_TRACK',
+    'WORKLOG_LANG', 'AI_WORKLOG_DIR', 'NOTION_DB_ID',
+    'PROJECT_DOC_CHECK_INTERVAL'
+]
 
-# AGENT_TEAMS env 제거
 env = cfg.get('env', {})
-env.pop('CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS', None)
+removed_keys = []
+for key in WORKLOG_ENV_KEYS:
+    if key in env:
+        del env[key]
+        removed_keys.append(key)
+
+if removed_keys:
+    print(f"  ✓ env keys removed: {', '.join(removed_keys)}")
+else:
+    print("  · no worklog env keys found")
+
+# 빈 env/hooks 정리
 if not env:
     cfg.pop('env', None)
-else:
-    cfg['env'] = env
+if not hooks:
+    cfg.pop('hooks', None)
 
-with open(settings_file, 'w') as f:
+with open(settings_file, 'w', encoding='utf-8') as f:
     json.dump(cfg, f, indent=2, ensure_ascii=False)
     f.write('\n')
+
+print(f"\n  Saved: {settings_file}")
 PYEOF
+  ok "settings.json updated"
+else
+  info "settings.json not found, skipping"
 fi
 
-# CLAUDE.md 블록 제거
-CLAUDE_FILE="$TARGET_DIR/CLAUDE.md"
-if [ -f "$CLAUDE_FILE" ]; then
-  python3 - "$CLAUDE_FILE" <<'PYEOF'
-import sys
+# ── git hook 정리 ───────────────────────────────────────────────────────────
+header "Git Hook 정리"
 
-claude_file = sys.argv[1]
-START = "# --- ai-bouncer-rule start ---"
-END   = "# --- ai-bouncer-rule end ---"
-
-content = open(claude_file, encoding='utf-8').read()
-s = content.find(START)
-e = content.find(END)
-
-if s == -1 or e == -1:
-    print("  CLAUDE.md 블록 없음 (no-op)")
-    sys.exit(0)
-
-# 마커 포함 블록 제거, 앞뒤 빈줄 정리 (섹션 간 이중 개행 보존)
-before = content[:s].rstrip('\n')
-after  = content[e + len(END):].lstrip('\n')
-new_content = (before + '\n\n' + after).strip('\n')
-if new_content:
-    new_content += '\n'
-else:
-    # CLAUDE.md가 bouncer 규칙만 있었으면 파일 삭제
-    import os
-    os.remove(claude_file)
-    print("  CLAUDE.md 삭제됨 (bouncer 규칙만 있었음)")
-    sys.exit(0)
-
-open(claude_file, 'w', encoding='utf-8').write(new_content)
-print("  CLAUDE.md ai-bouncer 규칙 블록 제거됨")
-PYEOF
+if [ "$SCOPE" = "global" ]; then
+  CURRENT_HOOKS_PATH=$(git config --global core.hooksPath 2>/dev/null || true)
+  if [ "$CURRENT_HOOKS_PATH" = "$TARGET_DIR/git-hooks" ]; then
+    git config --global --unset core.hooksPath 2>/dev/null || true
+    ok "core.hooksPath reset"
+  else
+    info "core.hooksPath points elsewhere ($CURRENT_HOOKS_PATH), not touching"
+  fi
+else
+  REPO_GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || true)
+  if [ -n "$REPO_GIT_DIR" ]; then
+    LOCAL_HOOK="$REPO_GIT_DIR/hooks/post-commit"
+    if [ -f "$LOCAL_HOOK" ] && grep -q "worklog-for-claude\|AI_WORKLOG_DIR\|post-commit.sh" "$LOCAL_HOOK" 2>/dev/null; then
+      rm -f "$LOCAL_HOOK"
+      ok "post-commit hook removed"
+      # post-commit.local 복원
+      if [ -f "${LOCAL_HOOK}.local" ]; then
+        mv "${LOCAL_HOOK}.local" "$LOCAL_HOOK"
+        ok "post-commit.local restored as post-commit"
+      fi
+    else
+      info "post-commit hook not ours, not touching"
+    fi
+  fi
 fi
 
-# scripts/ 정리
-rm -rf "$TARGET_DIR/scripts"
-
-# 빈 디렉토리 정리 (skills 서브디렉토리는 동적으로 처리)
-for dir in "$TARGET_DIR/hooks/lib" "$TARGET_DIR/hooks" \
-           "$TARGET_DIR/agents/guides" "$TARGET_DIR/agents"; do
-  rmdir "$dir" 2>/dev/null || true
+# ── 빈 디렉토리 정리 ───────────────────────────────────────────────────────
+for subdir in scripts hooks commands rules git-hooks; do
+  dir="$TARGET_DIR/$subdir"
+  if [ -d "$dir" ] && [ -z "$(ls -A "$dir" 2>/dev/null)" ]; then
+    rmdir "$dir" 2>/dev/null || true
+  fi
 done
-for skill_dir in "$TARGET_DIR/skills"/*/; do
-  [ -d "$skill_dir" ] && rmdir "$skill_dir" 2>/dev/null || true
-done
-rmdir "$TARGET_DIR/skills" 2>/dev/null || true
 
-# 매니페스트/config 삭제
-rm -f "$BOUNCER_DATA_DIR/manifest.json"
-rm -f "$BOUNCER_DATA_DIR/config.json"
-rmdir "$BOUNCER_DATA_DIR" 2>/dev/null || true
+# ── 완료 ────────────────────────────────────────────────────────────────────
+header "제거 완료"
 
-# .gitignore managed block 제거
-GITIGNORE_FILE="$REPO_ROOT/.gitignore"
-if [ -f "$GITIGNORE_FILE" ]; then
-  python3 - "$GITIGNORE_FILE" <<'PYEOF'
-import sys
-f = sys.argv[1]
-START = "# --- ai-bouncer start ---"
-END   = "# --- ai-bouncer end ---"
-content = open(f, encoding='utf-8').read()
-s = content.find(START)
-e = content.find(END)
-if s == -1 or e == -1:
-    sys.exit(0)
-before = content[:s].rstrip('\n')
-after  = content[e + len(END):].lstrip('\n')
-new = (before + ('\n\n' if before and after else '') + after)
-if new and not new.endswith('\n'):
-    new += '\n'
-open(f, 'w', encoding='utf-8').write(new)
-print("  .gitignore ai-bouncer 블록 제거됨")
-PYEOF
-fi
-
-# 프로젝트 루트의 update.sh / uninstall.sh 삭제
-if [ -n "$REPO_ROOT" ]; then
-  rm -f "$REPO_ROOT/update.sh"
-  rm -f "$REPO_ROOT/uninstall.sh"
-fi
-
+echo "  Preserved:"
+echo "  • .worklogs/ (worklog data)"
+echo "  • .env (credentials)"
 echo ""
-ok "ai-bouncer 제거 완료"
+ok "worklog-for-claude has been removed."

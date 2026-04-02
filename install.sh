@@ -22,6 +22,19 @@ header(){ echo -e "\n${BOLD}${CYAN}── $* ──${NC}\n"; }
 # ── 패키지 루트 감지 ─────────────────────────────────────────────────────────
 PACKAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# curl 실행 모드: 패키지 파일이 없으면 임시 디렉토리에 clone
+_CURL_TMPDIR=""
+if [ ! -f "$PACKAGE_DIR/hooks/post-commit.sh" ]; then
+  _CURL_TMPDIR=$(mktemp -d)
+  trap 'rm -rf "$_CURL_TMPDIR"' EXIT
+  echo "Downloading worklog-for-claude..."
+  if ! git clone --depth 1 https://github.com/kangraemin/worklog-for-claude.git "$_CURL_TMPDIR/worklog-for-claude" 2>/dev/null; then
+    err "git clone failed. Check your network connection."
+    exit 1
+  fi
+  PACKAGE_DIR="$_CURL_TMPDIR/worklog-for-claude"
+fi
+
 # ── 언어 선택 / Language selection ───────────────────────────────────────────
 printf "Language / 언어:\n  1) 한국어\n  2) English\n\n"
 printf "Select / 선택 [1]: "
@@ -669,13 +682,13 @@ PYEOF
     ok "$(t 'MCP 설정 완료' 'MCP configured') ($client_name): $config_file"
   }
 
-  if [[ "$MCP_CHOICE" =~ ^[145]$ ]]; then
+  if [[ "$MCP_CHOICE" =~ ^[14]$ ]]; then
     setup_mcp_client "$HOME/.claude/settings.json" "Claude Code"
   fi
-  if [[ "$MCP_CHOICE" =~ ^[245]$ ]]; then
+  if [[ "$MCP_CHOICE" =~ ^[24]$ ]]; then
     setup_mcp_client "$HOME/.cursor/mcp.json" "Cursor"
   fi
-  if [[ "$MCP_CHOICE" =~ ^[345]$ ]]; then
+  if [[ "$MCP_CHOICE" =~ ^[34]$ ]]; then
     setup_mcp_client "$HOME/Library/Application Support/Claude/claude_desktop_config.json" "Claude Desktop"
   fi
 
