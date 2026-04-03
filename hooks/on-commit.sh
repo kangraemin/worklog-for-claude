@@ -13,8 +13,6 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""')
 # 명령 구문 앞에 위치한 경우만 매칭 (heredoc/문자열 내 오탐 방지)
 printf '%s' "$COMMAND" | grep -qE '(^|\n|;|&&|\|\|)\s*git\s+commit(\s|$)' || exit 0
 
-jq -n '{
-  "decision": "block",
-  "reason": "/worklog 스킬을 실행해서 이번 작업을 워크로그로 기록해줘."
-}'
+# block 없이 exit — stop.sh가 세션 종료 시 pending 마커를 감지하여 /worklog 실행 요청
+exit 0
 # --- worklog-for-claude end ---

@@ -379,14 +379,14 @@ class TestPostCommitManualMode(_GitRepoBase):
 
 
 class TestOnCommitHookBehavior(unittest.TestCase):
-    """on-commit.sh: git commit 감지 → decision:block 반환"""
+    """on-commit.sh: git commit 감지 후 exit 0 (block 안 함, stop.sh에서 처리)"""
 
     def setUp(self):
         if not shutil.which("jq"):
             self.skipTest("jq not found")
         self.hook = os.path.join(PACKAGE_DIR, "hooks", "on-commit.sh")
 
-    def _run_hook(self, command: str, timing: str = "stop") -> subprocess.CompletedProcess:
+    def _run_hook(self, command: str, timing: str = "each-commit") -> subprocess.CompletedProcess:
         payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
         env = {**os.environ, "WORKLOG_TIMING": timing}
         return subprocess.run(
@@ -398,18 +398,16 @@ class TestOnCommitHookBehavior(unittest.TestCase):
             timeout=5,
         )
 
-    def test_git_commit_returns_block(self):
-        """git commit 명령 → decision:block"""
+    def test_git_commit_no_block(self):
+        """git commit 명령 → block 없음 (exit 0, stdout 비어있음)"""
         r = self._run_hook('git commit -m "feat: test"')
         self.assertEqual(r.returncode, 0)
-        result = json.loads(r.stdout)
-        self.assertEqual(result["decision"], "block")
+        self.assertEqual(r.stdout.strip(), "")
 
-    def test_block_reason_contains_worklog(self):
-        """block reason에 /worklog 포함"""
+    def test_git_commit_no_json_output(self):
+        """git commit 후 JSON 응답 없음"""
         r = self._run_hook('git commit -m "test"')
-        result = json.loads(r.stdout)
-        self.assertIn("/worklog", result["reason"])
+        self.assertEqual(r.stdout.strip(), "")
 
     def test_git_push_no_block(self):
         """git push → block 없음 (exit 0, no output)"""
@@ -435,18 +433,18 @@ class TestOnCommitHookBehavior(unittest.TestCase):
         self.assertEqual(r.returncode, 0)
         self.assertEqual(r.stdout.strip(), "")
 
-    def test_git_commit_amend_triggers_block(self):
-        """git commit --amend도 감지"""
+    def test_git_commit_amend_no_block(self):
+        """git commit --amend도 block 안 함"""
         r = self._run_hook("git commit --amend --no-edit")
-        result = json.loads(r.stdout)
-        self.assertEqual(result["decision"], "block")
+        self.assertEqual(r.returncode, 0)
+        self.assertEqual(r.stdout.strip(), "")
 
-    def test_multiline_with_git_commit(self):
-        """멀티라인 명령에서 git commit 감지"""
+    def test_multiline_with_git_commit_no_block(self):
+        """멀티라인 명령에서 git commit 있어도 block 안 함"""
         cmd = 'git add -A && git commit -m "feat: test" && git push'
         r = self._run_hook(cmd)
-        result = json.loads(r.stdout)
-        self.assertEqual(result["decision"], "block")
+        self.assertEqual(r.returncode, 0)
+        self.assertEqual(r.stdout.strip(), "")
 
 
 class TestCommitDocCheckHookBehavior(unittest.TestCase):

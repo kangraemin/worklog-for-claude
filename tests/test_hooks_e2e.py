@@ -122,11 +122,10 @@ class TestStopPendingMarker(_HookBase):
         self.assertIn("/worklog", result["reason"])
 
     def test_shows_commit_msg(self):
-        """reason이 /worklog 실행을 요청하는 메시지"""
+        """reason에 미처리 커밋 메시지 포함"""
         r = self._run_stop_hook(self.stdin)
         result = json.loads(r.stdout)
-        # stop.sh는 커밋 메시지 대신 /worklog 실행 안내
-        self.assertIn("/worklog", result["reason"])
+        self.assertIn("feat: test feature", result["reason"])
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -135,7 +134,7 @@ class TestStopPendingMarker(_HookBase):
 
 
 class TestStopUncommittedChanges(_HookBase):
-    """미커밋 변경사항 유무와 무관하게 stop.sh는 항상 block"""
+    """미커밋 변경사항이 있으면 block + /finish"""
 
     def setUp(self):
         super().setUp()
@@ -146,26 +145,26 @@ class TestStopUncommittedChanges(_HookBase):
         self.stdin = {"cwd": self.repo, "stop_hook_active": False}
 
     def test_block_decision(self):
-        """미커밋 변경사항이 있어도 decision=block"""
+        """미커밋 변경사항이 있으면 decision=block"""
         r = self._run_stop_hook(self.stdin)
         self.assertEqual(r.returncode, 0)
         result = json.loads(r.stdout)
         self.assertEqual(result["decision"], "block")
 
-    def test_worklog_reason(self):
-        """reason에 /worklog 포함"""
+    def test_finish_reason(self):
+        """dirty일 때 reason에 /finish 포함"""
         r = self._run_stop_hook(self.stdin)
         result = json.loads(r.stdout)
-        self.assertIn("/worklog", result["reason"])
+        self.assertIn("/finish", result["reason"])
 
-    def test_clean_repo_also_blocks(self):
-        """클린 상태에서도 stop.sh는 block (WORKLOG_TIMING=stop이면)"""
+    def test_clean_repo_no_block(self):
+        """클린 + pending 없으면 block 안 함 (exit 0, stdout 비어있음)"""
         # dirty 파일 제거
         subprocess.run(["git", "-C", self.repo, "reset", "HEAD", "dirty.txt"], capture_output=True, env=self._env())
         os.remove(os.path.join(self.repo, "dirty.txt"))
         r = self._run_stop_hook(self.stdin)
-        result = json.loads(r.stdout)
-        self.assertEqual(result["decision"], "block")
+        self.assertEqual(r.returncode, 0)
+        self.assertEqual(r.stdout.strip(), "")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
