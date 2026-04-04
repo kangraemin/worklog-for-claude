@@ -36,8 +36,8 @@ EXPECTED_FILES = [
     "git-hooks/post-commit",
     "commands/worklog.md",
     "commands/worklog-config.md",
-    "commands/update-worklog.md",
-    "commands/finish.md",
+    "commands/worklog-update.md",
+    "commands/worklog-migrate.md",
     "rules/worklog-rules.md",
 ]
 
@@ -93,7 +93,7 @@ def _default_mcp() -> dict:
 
 def _default_env(target_dir: str, dest: str = "notion-only") -> dict:
     env = {
-        "WORKLOG_TIMING": "each-commit",
+        "WORKLOG_TIMING": "stop",
         "WORKLOG_DEST": dest,
         "WORKLOG_GIT_TRACK": "false" if dest == "notion-only" else "true",
         "WORKLOG_LANG": "ko",

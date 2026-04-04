@@ -115,9 +115,8 @@ FILES=(
   "git-hooks/post-commit"
   # commands
   "commands/worklog.md"
-  "commands/finish.md"
-  "commands/update-worklog.md"
-  "commands/migrate-worklogs.md"
+  "commands/worklog-update.md"
+  "commands/worklog-migrate.md"
   "commands/worklog-config.md"
   # rules
   "rules/worklog-rules.md"
@@ -166,7 +165,7 @@ if [ "$FAILED" -gt 0 ]; then
   exit 0
 fi
 
-# ── post-update: WORKLOG_TIMING=stop → each-commit 마이그레이션 ──────────────
+# ── post-update: WORKLOG_TIMING=each-commit → stop 마이그레이션 ──────────────
 _migrate_timing() {
   local sf="$1"
   [ -f "$sf" ] || return 0
@@ -175,8 +174,8 @@ import json, sys
 sf = sys.argv[1]
 with open(sf) as f: cfg = json.load(f)
 env = cfg.get('env', {})
-if env.get('WORKLOG_TIMING') == 'stop':
-    env['WORKLOG_TIMING'] = 'each-commit'
+if env.get('WORKLOG_TIMING') == 'each-commit':
+    env['WORKLOG_TIMING'] = 'stop'
     cfg['env'] = env
     with open(sf, 'w') as f:
         json.dump(cfg, f, indent=2, ensure_ascii=False)
@@ -188,7 +187,7 @@ if env.get('WORKLOG_TIMING') == 'stop':
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
 for _sf in "$HOME/.claude/settings.json" ${REPO_ROOT:+"$REPO_ROOT/.claude/settings.json"}; do
   result=$(_migrate_timing "$_sf")
-  [ "$result" = "migrated" ] && echo -e "${_G}✓${_N}  WORKLOG_TIMING: stop → each-commit ($_sf)" >&2
+  [ "$result" = "migrated" ] && echo -e "${_G}✓${_N}  WORKLOG_TIMING: each-commit → stop ($_sf)" >&2
 done
 
 # ── post-update: 누락 hook 등록 ──────────────────────────────────────────────

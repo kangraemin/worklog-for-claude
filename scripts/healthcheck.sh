@@ -95,8 +95,8 @@ EXPECTED_FILES=(
   "git-hooks/post-commit"
   "commands/worklog.md"
   "commands/worklog-config.md"
-  "commands/update-worklog.md"
-  "commands/finish.md"
+  "commands/worklog-update.md"
+  "commands/worklog-migrate.md"
   "rules/worklog-rules.md"
 )
 
@@ -393,7 +393,7 @@ if [ "$OVERALL" = "pass" ]; then
   echo "  ✅ 전체 정상"
 elif [ "$OVERALL" = "warn" ]; then
   echo "  ⚠️ 일부 문제 발견"
-  echo "  💡 문제 해결: /update-worklog 실행"
+  echo "  💡 문제 해결: /worklog-update 실행"
 else
   echo "  ❌ 심각한 문제"
   echo "  💡 문제 해결: install.sh 재설치 권장"

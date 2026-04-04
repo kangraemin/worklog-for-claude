@@ -3,8 +3,8 @@
 # install.sh에서 git hooks 경로에 설치됨 (전역 또는 로컬)
 
 # ── WORKLOG_TIMING 체크 ──────────────────────────────────────────────────────
-# manual이면 스킵 (each-commit이 기본)
-[ "${WORKLOG_TIMING:-each-commit}" = "manual" ] && exit 0
+# manual이면 스킵 (stop이 기본)
+[ "${WORKLOG_TIMING:-stop}" = "manual" ] && exit 0
 
 # ── Claude Code 세션 내에서는 pending 마커 작성 후 종료 ──────────────────────
 # claude -p 중첩 실행이 불가하므로 마커를 남기고 Stop hook에서 /worklog 요청

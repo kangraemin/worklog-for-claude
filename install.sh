@@ -305,7 +305,7 @@ fi
 # ── 작성 시점 ────────────────────────────────────────────────────────────────
 header "$(t '워크로그 작성 시점' 'When to Write Worklogs')"
 
-echo "  1) each-commit — $(t '커밋할 때마다 자동 (추천)' 'automatically on every commit (recommended)')"
+echo "  1) stop         — $(t '세션 종료 시 자동 (추천)' 'automatically on session stop (recommended)')"
 echo "  2) manual      — $(t '/worklog 실행할 때만' 'only when running /worklog')"
 echo ""
 printf "$(t '선택' 'Select') [1]: "
@@ -314,7 +314,7 @@ TIMING_CHOICE="${TIMING_CHOICE:-1}"
 
 case "$TIMING_CHOICE" in
   2) WORKLOG_TIMING="manual" ;;
-  *) WORKLOG_TIMING="each-commit" ;;
+  *) WORKLOG_TIMING="stop" ;;
 esac
 
 # ── 자동 커밋 (deprecated) ────────────────────────────────────────────────────
@@ -423,9 +423,8 @@ install_file "$PACKAGE_DIR/hooks/stop.sh"              "$TARGET_DIR/hooks/stop.s
 
 # commands (항상 덮어쓰기)
 copy_file "$PACKAGE_DIR/commands/worklog.md"          "$TARGET_DIR/commands/worklog.md"
-copy_file "$PACKAGE_DIR/commands/migrate-worklogs.md" "$TARGET_DIR/commands/migrate-worklogs.md"
-copy_file "$PACKAGE_DIR/commands/update-worklog.md"   "$TARGET_DIR/commands/update-worklog.md"
-copy_file "$PACKAGE_DIR/commands/finish.md"           "$TARGET_DIR/commands/finish.md"
+copy_file "$PACKAGE_DIR/commands/worklog-migrate.md"  "$TARGET_DIR/commands/worklog-migrate.md"
+copy_file "$PACKAGE_DIR/commands/worklog-update.md"   "$TARGET_DIR/commands/worklog-update.md"
 copy_file "$PACKAGE_DIR/commands/worklog-config.md"  "$TARGET_DIR/commands/worklog-config.md"
 
 # rules (항상 덮어쓰기)
@@ -534,19 +533,6 @@ def add_command_hook(event, command, timeout, is_async, matcher=None):
 for event, command, timeout, is_async, matcher in hook_defs:
     add_command_hook(event, command, timeout, is_async, matcher)
 
-# ── 구버전 Stop hook 정리 (finish.sh 등 제거, stop.sh는 유지) ──
-STOP_HOOK_REMOVE = ['/finish']
-
-stop_hooks = hooks.get('Stop', [])
-hooks['Stop'] = [
-    g for g in stop_hooks
-    if not any(
-        any(m in h.get('command', '') or m in h.get('prompt', '') for m in STOP_HOOK_REMOVE)
-        for h in g.get('hooks', [])
-    )
-]
-if not hooks['Stop']:
-    hooks.pop('Stop', None)
 
 # 저장
 with open(settings_file, 'w', encoding='utf-8') as f:
@@ -730,11 +716,10 @@ echo "  └─ $(t 'Git Hook' 'Git Hook'):  post-commit ($(t '터미널 커밋 �
 echo ""
 echo -e "  ${BOLD}$(t '사용법' 'Usage')${NC}"
 echo "  • /worklog           — $(t '워크로그 수동 작성' 'write a worklog entry')"
-echo "  • /finish            — $(t '세션 종료 (커밋 + 워크로그)' 'end session (commit + worklog)')"
-echo "  • /migrate-worklogs  — $(t '기존 .worklogs/ → Notion 마이그레이션' 'migrate existing .worklogs/ to Notion')"
+echo "  • /worklog-migrate   — $(t '기존 .worklogs/ → Notion 마이그레이션' 'migrate existing .worklogs/ to Notion')"
 echo ""
 echo -e "  ${BOLD}$(t '팁' 'Tip')${NC}"
-echo "  $(t 'Claude Code 세션에서 /worklog 또는 /finish 로 워크로그를 작성하세요.' 'Use /worklog or /finish in Claude Code sessions to write worklogs.')"
+echo "  $(t 'Claude Code 세션에서 /worklog 로 워크로그를 작성하세요.' 'Use /worklog in Claude Code sessions to write worklogs.')"
 echo ""
 echo -e "  ${BOLD}$(t '재설정' 'Reconfigure')${NC}"
 echo "  • $PACKAGE_DIR/install.sh --reconfigure"

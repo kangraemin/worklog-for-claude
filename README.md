@@ -70,9 +70,9 @@ When you're deep in a Claude Code session, it's easy to lose track of what you'v
 
 - **Non-destructive install** — Preserves existing git hooks via chaining.
 - **Bilingual** — Full Korean and English support (`WORKLOG_LANG`).
-- **Self-updating** — Automatic version check on `SessionStart`, or manual with `/update-worklog`.
+- **Self-updating** — Automatic version check on `SessionStart`, or manual with `/worklog-update`.
 - **Global or local** — Install once for all projects, or per-repo.
-- **Bulk migration** — Move existing markdown worklogs to Notion with `/migrate-worklogs`.
+- **Bulk migration** — Move existing markdown worklogs to Notion with `/worklog-migrate`.
 - **MCP server** — Cross-client support (Claude Code, Cursor, Claude Desktop) with PROJECT.md auto-management.
 
 ---
@@ -170,27 +170,19 @@ Every `git commit` triggers a worklog entry. No action required.
 
 Writes a worklog entry from the current conversation context. Works regardless of the `WORKLOG_TIMING` setting.
 
-### Session finish
-
-```
-/finish
-```
-
-Commits + pushes + writes worklog — all in one step. Great for wrapping up a session.
-
 ### Migrate to Notion
 
 ```
-/migrate-worklogs              # dry-run preview
-/migrate-worklogs --all        # migrate all .md files
-/migrate-worklogs --date 2026-03-01  # specific date only
-/migrate-worklogs --all --delete-after  # migrate and delete source files
+/worklog-migrate              # dry-run preview
+/worklog-migrate --all        # migrate all .md files
+/worklog-migrate --date 2026-03-01  # specific date only
+/worklog-migrate --all --delete-after  # migrate and delete source files
 ```
 
 ### Self-update
 
 ```
-/update-worklog
+/worklog-update
 ```
 
 Checks GitHub for updates and re-installs if a new version is available.
@@ -336,9 +328,8 @@ worklog-for-claude/
 │   └── update-check.sh    # Version check against remote
 ├── commands/               # Claude Code skill definitions
 │   ├── worklog.md          # /worklog
-│   ├── finish.md           # /finish
-│   ├── migrate-worklogs.md # /migrate-worklogs
-│   └── update-worklog.md   # /update-worklog
+│   ├── worklog-migrate.md  # /worklog-migrate
+│   └── worklog-update.md   # /worklog-update
 ├── rules/                  # Workspace rules
 ├── mcp/                    # MCP server (Python, FastMCP)
 │   ├── src/worklog_mcp/    # Server + tools
@@ -407,7 +398,7 @@ It parses Claude Code's actual JSONL logs using official token counts and model-
 <details>
 <summary><strong>Can I migrate from local files to Notion later?</strong></summary>
 
-Yes. Run `/migrate-worklogs --all` to bulk-import existing `.worklogs/*.md` files into Notion. Use `--date` to migrate specific dates.
+Yes. Run `/worklog-migrate --all` to bulk-import existing `.worklogs/*.md` files into Notion. Use `--date` to migrate specific dates.
 </details>
 
 <details>

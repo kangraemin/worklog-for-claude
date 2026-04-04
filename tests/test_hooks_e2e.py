@@ -4,7 +4,7 @@ stop.sh hook e2e 테스트
 
 격리된 git repo에서 실제 stop.sh 실행 검증:
 - pending worklog 마커가 있으면 block + /worklog 안내
-- 미커밋 변경사항이 있으면 block + /finish 안내
+- 미커밋 변경사항이 있으면 block + 커밋 안내
 - 클린 상태면 통과
 
 Run: python3 -m pytest tests/test_hooks_e2e.py -v
@@ -134,7 +134,7 @@ class TestStopPendingMarker(_HookBase):
 
 
 class TestStopUncommittedChanges(_HookBase):
-    """미커밋 변경사항이 있으면 block + /finish"""
+    """미커밋 변경사항이 있으면 block + 커밋 안내"""
 
     def setUp(self):
         super().setUp()
@@ -152,10 +152,10 @@ class TestStopUncommittedChanges(_HookBase):
         self.assertEqual(result["decision"], "block")
 
     def test_finish_reason(self):
-        """dirty일 때 reason에 /finish 포함"""
+        """dirty일 때 reason에 커밋 포함"""
         r = self._run_stop_hook(self.stdin)
         result = json.loads(r.stdout)
-        self.assertIn("/finish", result["reason"])
+        self.assertIn("커밋", result["reason"])
 
     def test_clean_repo_no_block(self):
         """클린 + pending 없으면 block 안 함 (exit 0, stdout 비어있음)"""
@@ -229,6 +229,23 @@ class TestStopPendingDifferentProject(_HookBase):
         r = self._run_stop_hook(self.stdin)
         self.assertEqual(r.returncode, 0)
         self.assertEqual(r.stdout.strip(), "")
+
+
+class TestStopDirtyNoFinish(_HookBase):
+    """stop.sh dirty 메시지에 /finish가 아닌 커밋 포함"""
+    def setUp(self):
+        super().setUp()
+        dirty = os.path.join(self.repo, "dirty.txt")
+        with open(dirty, "w") as f:
+            f.write("dirty\n")
+        subprocess.run(["git", "-C", self.repo, "add", "dirty.txt"], capture_output=True)
+        self.stdin = {"cwd": self.repo, "stop_hook_active": False}
+
+    def test_no_finish_in_reason(self):
+        r = self._run_stop_hook(self.stdin)
+        result = json.loads(r.stdout)
+        self.assertNotIn("/finish", result["reason"])
+        self.assertIn("커밋", result["reason"])
 
 
 # ══════════════════════════════════════════════════════════════════════════════

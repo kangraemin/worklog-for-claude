@@ -386,7 +386,7 @@ class TestOnCommitHookBehavior(unittest.TestCase):
             self.skipTest("jq not found")
         self.hook = os.path.join(PACKAGE_DIR, "hooks", "on-commit.sh")
 
-    def _run_hook(self, command: str, timing: str = "each-commit") -> subprocess.CompletedProcess:
+    def _run_hook(self, command: str, timing: str = "stop") -> subprocess.CompletedProcess:
         payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
         env = {**os.environ, "WORKLOG_TIMING": timing}
         return subprocess.run(

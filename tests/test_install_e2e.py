@@ -38,8 +38,7 @@ EXPECTED_FILES = [
     "hooks/on-commit.sh",
     "hooks/commit-doc-check.sh",
     "commands/worklog.md",
-    "commands/migrate-worklogs.md",
-    "commands/finish.md",
+    "commands/worklog-migrate.md",
     "commands/worklog-config.md",
     "rules/worklog-rules.md",
     "rules/auto-commit-rules.md",
@@ -164,7 +163,7 @@ class TestFreshGitInstall(_Base):
         env = self._settings()["env"]
         self.assertEqual(env["WORKLOG_DEST"], "git")
         self.assertEqual(env["WORKLOG_GIT_TRACK"], "true")
-        self.assertEqual(env["WORKLOG_TIMING"], "each-commit")
+        self.assertEqual(env["WORKLOG_TIMING"], "stop")
         self.assertEqual(env["WORKLOG_LANG"], "ko")
 
     def test_settings_env_english_lang(self):
@@ -333,7 +332,7 @@ class TestReinstall(_Base):
         env = {
             "WORKLOG_DEST": "git",
             "WORKLOG_GIT_TRACK": "true",
-            "WORKLOG_TIMING": "each-commit",
+            "WORKLOG_TIMING": "stop",
             "AI_WORKLOG_DIR": d,
         }
         if extra_env:
@@ -1315,19 +1314,27 @@ class TestArgvIndexing(_Base):
 
 
 class TestTimingValue(_Base):
-    """timing 값이 each-commit으로 설정"""
+    """timing 값이 stop으로 설정"""
 
-    def test_each_commit_timing(self):
-        """stop(1) 선택 시 WORKLOG_TIMING=each-commit"""
+    def test_stop_timing(self):
+        """stop(1) 선택 시 WORKLOG_TIMING=stop"""
         self._run(["1", "1", "3", "1", "1", "5", "5"])
         cfg = self._settings()
-        self.assertEqual(cfg["env"]["WORKLOG_TIMING"], "each-commit")
+        self.assertEqual(cfg["env"]["WORKLOG_TIMING"], "stop")
 
     def test_manual_timing(self):
         """manual(2) 선택 시 WORKLOG_TIMING=manual"""
         self._run(["1", "1", "3", "1", "2", "5", "5"])
         cfg = self._settings()
         self.assertEqual(cfg["env"]["WORKLOG_TIMING"], "manual")
+
+
+class TestTimingStopDefault(_Base):
+    """신규 설치 시 WORKLOG_TIMING=stop"""
+    def test_stop_timing(self):
+        self._run(["1", "1", "3", "1", "1", "", "5"])
+        cfg = self._settings()
+        self.assertEqual(cfg["env"]["WORKLOG_TIMING"], "stop")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -65,9 +65,8 @@ WORKLOG_FILES=(
   "hooks/stop.sh"
   # commands
   "commands/worklog.md"
-  "commands/finish.md"
-  "commands/migrate-worklogs.md"
-  "commands/update-worklog.md"
+  "commands/worklog-migrate.md"
+  "commands/worklog-update.md"
   "commands/worklog-config.md"
   # rules
   "rules/worklog-rules.md"

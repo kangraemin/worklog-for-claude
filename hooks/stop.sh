@@ -8,7 +8,7 @@ INPUT=$(cat)
 
 # --- worklog-for-claude start ---
 # WORKLOG_TIMING=manual이면 스킵
-[ "${WORKLOG_TIMING:-each-commit}" = "manual" ] && exit 0
+[ "${WORKLOG_TIMING:-stop}" = "manual" ] && exit 0
 
 # 재진입 방지: 이미 stop hook 처리 중이면 통과
 STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false')
@@ -26,7 +26,7 @@ DIRTY=$(git status --porcelain 2>/dev/null | grep -v '^??' | grep -v ' \.worklog
 if [ -n "$DIRTY" ]; then
   jq -n '{
     "decision": "block",
-    "reason": "/finish 스킬을 실행해서 커밋, 푸시, 워크로그를 작성해줘."
+    "reason": "변경사항을 커밋하고 푸시해줘."
   }'
   exit 0
 fi

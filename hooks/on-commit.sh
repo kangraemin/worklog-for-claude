@@ -3,7 +3,7 @@
 
 # --- worklog-for-claude start ---
 command -v jq &>/dev/null || exit 0
-[ "${WORKLOG_TIMING:-each-commit}" = "manual" ] && exit 0
+[ "${WORKLOG_TIMING:-stop}" = "manual" ] && exit 0
 
 INPUT=$(cat)
 

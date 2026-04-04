@@ -569,7 +569,7 @@ EXPECTED_SCRIPTS = {
     "token-cost.py", "duration.py", "update-check.sh",
 }
 EXPECTED_COMMANDS = {
-    "worklog.md", "finish.md", "migrate-worklogs.md", "update-worklog.md",
+    "worklog.md", "worklog-migrate.md", "worklog-update.md",
     "worklog-config.md",
 }
 EXPECTED_RULES = {
@@ -731,7 +731,7 @@ class TestConfigChange(_LifecycleBase):
 
     def setUp(self):
         super().setUp()
-        # 전역 설치 (git + track + each-commit + ko)
+        # 전역 설치 (git + track + stop + ko)
         r = self._install(["1", "1", "3", "1", "1", "5", "5"])
         self.assertEqual(r.returncode, 0, f"install failed: {r.stderr}")
         self.target = os.path.join(self.tmp, ".claude")
@@ -748,20 +748,20 @@ class TestConfigChange(_LifecycleBase):
             f.write("\n")
 
     def test_timing_change_to_manual(self):
-        """each-commit → manual 변경 후 커밋 → .worklogs 미생성"""
+        """stop → manual 변경 후 커밋 → .worklogs 미생성"""
         self._update_setting("WORKLOG_TIMING", "manual")
         self._make_commit("after manual", env=self._commit_env(self.target, WORKLOG_TIMING="manual"))
         self.assertEqual(len(self._worklogs_files()), 0, ".worklogs should not be created in manual mode")
 
-    def test_timing_change_back_to_each_commit(self):
-        """manual → each-commit 변경 후 커밋 → .worklogs 생성"""
+    def test_timing_change_back_to_stop(self):
+        """manual → stop 변경 후 커밋 → .worklogs 생성"""
         # 먼저 manual로 변경
         self._update_setting("WORKLOG_TIMING", "manual")
         self._make_commit("manual commit", env=self._commit_env(self.target, WORKLOG_TIMING="manual"))
         self.assertEqual(len(self._worklogs_files()), 0)
 
-        # 다시 each-commit으로 변경
-        self._update_setting("WORKLOG_TIMING", "each-commit")
+        # 다시 stop으로 변경
+        self._update_setting("WORKLOG_TIMING", "stop")
         self._make_commit("back to auto", env=self._commit_env(self.target))
         self.assertTrue(len(self._worklogs_files()) > 0, ".worklogs should be created after switching back")
 
@@ -805,51 +805,51 @@ HOOK_FILES = [
 
 
 class TestHookDefaults(unittest.TestCase):
-    """hook 파일의 WORKLOG_TIMING 기본값이 each-commit인지 검증"""
+    """hook 파일의 WORKLOG_TIMING 기본값이 stop인지 검증"""
 
-    def test_hooks_no_stop_default(self):
-        """hook 4개에 WORKLOG_TIMING:-stop 패턴 없음"""
+    def test_hooks_no_each_commit_default(self):
+        """hook 4개에 WORKLOG_TIMING:-each-commit 패턴 없음"""
         for path in HOOK_FILES:
             with open(path) as f:
                 content = f.read()
             self.assertNotIn(
-                "WORKLOG_TIMING:-stop",
+                "WORKLOG_TIMING:-each-commit",
                 content,
-                f"{os.path.basename(path)} still has WORKLOG_TIMING:-stop",
+                f"{os.path.basename(path)} still has WORKLOG_TIMING:-each-commit",
             )
 
-    def test_hooks_use_each_commit_default(self):
-        """hook 4개에 WORKLOG_TIMING:-each-commit 패턴 존재"""
+    def test_hooks_use_stop_default(self):
+        """hook 4개에 WORKLOG_TIMING:-stop 패턴 존재"""
         for path in HOOK_FILES:
             with open(path) as f:
                 content = f.read()
             self.assertIn(
-                "WORKLOG_TIMING:-each-commit",
+                "WORKLOG_TIMING:-stop",
                 content,
-                f"{os.path.basename(path)} missing WORKLOG_TIMING:-each-commit",
+                f"{os.path.basename(path)} missing WORKLOG_TIMING:-stop",
             )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 20. WORKLOG_TIMING=stop → each-commit 마이그레이션 검증
+# 20. WORKLOG_TIMING=each-commit → stop 마이그레이션 검증
 # ══════════════════════════════════════════════════════════════════════════════
 
 
 class TestTimingMigration(_LifecycleBase):
-    """기존 stop 유저가 재설치/업데이트 시 each-commit으로 마이그레이션"""
+    """기존 each-commit 유저가 재설치/업데이트 시 stop으로 마이그레이션"""
 
-    def test_stop_to_each_commit_on_reinstall(self):
-        """settings.json에 stop 세팅 후 재설치 → each-commit으로 변경"""
+    def test_each_commit_to_stop_on_reinstall(self):
+        """settings.json에 each-commit 세팅 후 재설치 → stop으로 변경"""
         # 1차 설치
         r = self._install(["1", "1", "3", "1", "1", "5", "5"])
         self.assertEqual(r.returncode, 0)
         target = os.path.join(self.tmp, ".claude")
 
-        # stop으로 강제 변경 (이전 버전 시뮬레이션)
+        # each-commit으로 강제 변경 (이전 버전 시뮬레이션)
         settings_path = os.path.join(target, "settings.json")
         with open(settings_path) as f:
             cfg = json.load(f)
-        cfg["env"]["WORKLOG_TIMING"] = "stop"
+        cfg["env"]["WORKLOG_TIMING"] = "each-commit"
         with open(settings_path, "w") as f:
             json.dump(cfg, f, indent=2)
 
@@ -860,8 +860,8 @@ class TestTimingMigration(_LifecycleBase):
         with open(settings_path) as f:
             cfg2 = json.load(f)
         self.assertEqual(
-            cfg2["env"]["WORKLOG_TIMING"], "each-commit",
-            "stop should be migrated to each-commit on reinstall",
+            cfg2["env"]["WORKLOG_TIMING"], "stop",
+            "each-commit should be migrated to stop on reinstall",
         )
 
     def test_manual_not_changed_on_reinstall(self):
@@ -871,7 +871,7 @@ class TestTimingMigration(_LifecycleBase):
         self.assertEqual(r.returncode, 0)
         target = os.path.join(self.tmp, ".claude")
 
-        # 재설치 (each-commit 선택이지만 기존 manual 확인)
+        # 재설치 (stop 선택이지만 기존 manual 확인)
         r2 = self._install(["1", "1", "3", "1", "2", "5", "5"])
         self.assertEqual(r2.returncode, 0)
 
@@ -880,13 +880,13 @@ class TestTimingMigration(_LifecycleBase):
             cfg = json.load(f)
         self.assertEqual(cfg["env"]["WORKLOG_TIMING"], "manual")
 
-    def test_update_check_migrates_stop(self):
-        """update-check.sh 마이그레이션 로직이 stop→each-commit 변환"""
-        # settings.json에 stop 세팅
+    def test_update_check_migrates_each_commit(self):
+        """update-check.sh 마이그레이션 로직이 each-commit→stop 변환"""
+        # settings.json에 each-commit 세팅
         target = os.path.join(self.tmp, ".claude")
         os.makedirs(target, exist_ok=True)
         settings_path = os.path.join(target, "settings.json")
-        cfg = {"env": {"WORKLOG_TIMING": "stop"}}
+        cfg = {"env": {"WORKLOG_TIMING": "each-commit"}}
         with open(settings_path, "w") as f:
             json.dump(cfg, f, indent=2)
 
@@ -896,8 +896,8 @@ import json, sys
 sf = sys.argv[1]
 with open(sf) as f: cfg = json.load(f)
 env = cfg.get('env', {{}})
-if env.get('WORKLOG_TIMING') == 'stop':
-    env['WORKLOG_TIMING'] = 'each-commit'
+if env.get('WORKLOG_TIMING') == 'each-commit':
+    env['WORKLOG_TIMING'] = 'stop'
     cfg['env'] = env
     with open(sf, 'w') as f:
         json.dump(cfg, f, indent=2, ensure_ascii=False)
@@ -912,7 +912,7 @@ if env.get('WORKLOG_TIMING') == 'stop':
 
         with open(settings_path) as f:
             cfg2 = json.load(f)
-        self.assertEqual(cfg2["env"]["WORKLOG_TIMING"], "each-commit")
+        self.assertEqual(cfg2["env"]["WORKLOG_TIMING"], "stop")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

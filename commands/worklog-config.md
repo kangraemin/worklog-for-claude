@@ -15,7 +15,7 @@ description: "워크로그 설정 조회/변경. 'worklog 설정', 'worklog conf
 
 | 키 | 환경변수 | 허용 값 |
 |---|---|---|
-| `timing` | `WORKLOG_TIMING` | `each-commit`, `manual` |
+| `timing` | `WORKLOG_TIMING` | `stop`, `manual` |
 | `dest` | `WORKLOG_DEST` | `git`, `notion`, `notion-only` |
 | `git-track` | `WORKLOG_GIT_TRACK` | `true`, `false` |
 | `lang` | `WORKLOG_LANG` | `ko`, `en` |
@@ -31,7 +31,7 @@ description: "워크로그 설정 조회/변경. 'worklog 설정', 'worklog conf
 ```
 worklog-for-claude 설정
 ━━━━━━━━━━━━━━━━━━━━━━
-  Timing:    each-commit
+  Timing:    stop
   Storage:   notion-only
   Git Track: false
   Language:  ko
@@ -78,7 +78,7 @@ with open(file, 'w') as f:
 bash "${AI_WORKLOG_DIR:-$HOME/.claude}/scripts/healthcheck.sh"
 ```
 
-문제 발견 시 `/update-worklog` 또는 `install.sh` 재설치를 제안한다.
+문제 발견 시 `/worklog-update` 또는 `install.sh` 재설치를 제안한다.
 
 ## 사용 예시
 
