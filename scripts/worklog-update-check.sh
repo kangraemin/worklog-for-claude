@@ -50,7 +50,7 @@ with open(sf, 'w') as f:
     json.dump(cfg, f, indent=2, ensure_ascii=False)
     f.write('\n')
 print('added')
-" "$sf" "$event" "$cmd" "$timeout" "$is_async" "$matcher" 2>/dev/null
+" "$sf" "$event" "$cmd" "$timeout" "$is_async" "$matcher" >/dev/null 2>&1
   echo -e "${_G:-}✓${_N:-}  ${event} hook 등록: $basename" >&2
 }
 
@@ -69,7 +69,7 @@ if git rev-parse --is-inside-work-tree &>/dev/null; then
   if [ ! -f "$_PROJ_ROOT/PROJECT.md" ] && [ ! -f "$_PROMPTED" ]; then
     mkdir -p "$_PROJ_ROOT/.claude"
     touch "$_PROMPTED"
-    echo "💡 PROJECT.md가 없습니다. /update-project 를 실행하면 프로젝트 문서가 자동 생성됩니다."
+    echo '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"PROJECT.md가 없습니다. /update-project 를 실행하면 프로젝트 문서가 자동 생성됩니다. 사용자에게 실행 여부를 물어보세요."}}'
   fi
 fi
 
