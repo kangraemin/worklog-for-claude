@@ -143,8 +143,8 @@ class _Base(unittest.TestCase):
 class TestFreshGitInstall(_Base):
     """신규 설치: git-only, 글로벌 스코프"""
 
-    # 입력 순서: lang=ko, scope=global, dest=git, git-track=track, timing=stop, interval=default, mcp=skip
-    _BASE = ["1", "1", "3", "1", "1", "", "5"]
+    # 입력 순서: lang=ko, scope=global, dest=git, git-track=track, timing=stop
+    _BASE = ["1", "1", "3", "1", "1"]
 
     def test_exit_zero(self):
         r = self._run(self._BASE)
@@ -167,7 +167,7 @@ class TestFreshGitInstall(_Base):
         self.assertEqual(env["WORKLOG_LANG"], "ko")
 
     def test_settings_env_english_lang(self):
-        self._run(["2", "1", "3", "1", "1", "", "5"])  # lang=en, scope=global, git, track, stop, interval, mcp
+        self._run(["2", "1", "3", "1", "1"])  # lang=en, scope=global, git, track, stop
         self.assertEqual(self._settings()["env"]["WORKLOG_LANG"], "en")
 
     def test_ai_worklog_dir_points_to_target(self):
@@ -193,13 +193,13 @@ class TestFreshGitInstall(_Base):
         self.assertIn("설치가 완료", r.stdout)
 
     def test_git_ignore_mode(self):
-        # scope=global, dest=git, git-track=gitignore, timing=stop, interval, mcp
-        r = self._run(["1", "1", "3", "2", "1", "", "5"])
+        # scope=global, dest=git, git-track=gitignore, timing=stop
+        r = self._run(["1", "1", "3", "2", "1"])
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self._settings()["env"]["WORKLOG_GIT_TRACK"], "false")
 
     def test_timing_manual(self):
-        self._run(["1", "1", "3", "1", "2", "", "5"])
+        self._run(["1", "1", "3", "1", "2"])
         self.assertEqual(self._settings()["env"]["WORKLOG_TIMING"], "manual")
 
     def test_notion_db_id_not_added_for_git_mode(self):
@@ -228,9 +228,9 @@ class TestFreshNotionInstallWithCreds(_Base):
         with open(os.path.join(d, "settings.json"), "w") as f:
             json.dump({"env": {"NOTION_DB_ID": "fake-db-abc"}}, f)
 
-    # 입력 순서: lang=ko, scope=global, dest=both, track=yes, timing=stop, interval=default, mcp=skip
+    # 입력 순서: lang=ko, scope=global, dest=both, track=yes, timing=stop
     # (Notion 토큰/DB_ID 사전 주입 → 프롬프트 없음)
-    _BOTH = ["1", "1", "1", "1", "1", "", "5"]
+    _BOTH = ["1", "1", "1", "1", "1"]
 
     def test_both_mode_exit_zero(self):
         """both 모드 설치 정상 종료"""
@@ -245,11 +245,11 @@ class TestFreshNotionInstallWithCreds(_Base):
 
     def test_notion_only_exit_zero(self):
         """notion-only 모드 설치 정상 종료"""
-        self.assertEqual(self._run(["1", "1", "2", "1", "", "5"]).returncode, 0)
+        self.assertEqual(self._run(["1", "1", "2", "1"]).returncode, 0)
 
     def test_notion_only_dest_and_git_track(self):
         """notion-only: WORKLOG_DEST=notion-only, GIT_TRACK=false"""
-        self._run(["1", "1", "2", "1", "", "5"])
+        self._run(["1", "1", "2", "1"])
         env = self._settings()["env"]
         self.assertEqual(env["WORKLOG_DEST"], "notion-only")
         self.assertEqual(env["WORKLOG_GIT_TRACK"], "false")
@@ -290,29 +290,29 @@ class TestNotionInstallNoToken(_Base):
 
     def test_notion_only_no_token_exits_zero(self):
         """notion-only, 토큰 빈 값 → 정상 종료"""
-        # lang=ko, scope=global, dest=notion-only, token=empty, timing=stop, interval, mcp
-        r = self._run(["1", "1", "2", "", "1", "", "5"])
+        # lang=ko, scope=global, dest=notion-only, token=empty, timing=stop
+        r = self._run(["1", "1", "2", "", "1"])
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_both_no_token_exits_zero(self):
         """both, 토큰 빈 값 → 정상 종료"""
-        # lang=ko, scope=global, dest=both, token=empty, track=yes, timing=stop, interval, mcp
-        r = self._run(["1", "1", "1", "", "1", "1", "", "5"])
+        # lang=ko, scope=global, dest=both, token=empty, track=yes, timing=stop
+        r = self._run(["1", "1", "1", "", "1", "1"])
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_files_installed_without_token(self):
         """토큰 없어도 파일 설치 완료"""
-        self._run(["1", "1", "2", "", "1", "", "5"])
+        self._run(["1", "1", "2", "", "1"])
         self._assert_files(os.path.join(self.tmp, ".claude"))
 
     def test_hooks_added_without_token(self):
         """토큰 없어도 훅 등록"""
-        self._run(["1", "1", "2", "", "1", "", "5"])
+        self._run(["1", "1", "2", "", "1"])
         self.assertIn("PostToolUse", self._settings().get("hooks", {}))
 
     def test_no_token_in_env_file(self):
         """토큰 없으면 .env 에 NOTION_TOKEN 이 기록되지 않음"""
-        self._run(["1", "1", "2", "", "1", "", "5"])
+        self._run(["1", "1", "2", "", "1"])
         env_file = os.path.join(self.tmp, ".claude", ".env")
         if os.path.exists(env_file):
             self.assertNotIn("NOTION_TOKEN=", open(env_file).read())
@@ -352,7 +352,7 @@ class TestReinstall(_Base):
     def test_no_duplicate_hooks(self):
         """재설치 시 동일 command 가 중복 추가되지 않음"""
         self._seed_settings()
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         cfg = self._settings()
         cmds = [c for c in self._hook_commands(cfg, "PostToolUse") if "hooks/" in c]
         # 중복 없음 확인
@@ -361,14 +361,14 @@ class TestReinstall(_Base):
     def test_unrelated_env_keys_preserved(self):
         """worklog 와 무관한 env 키는 재설치 후에도 보존"""
         self._seed_settings(extra_env={"MY_KEY": "keep_me", "FOO": "bar"})
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         env = self._settings()["env"]
         self.assertEqual(env.get("MY_KEY"), "keep_me")
         self.assertEqual(env.get("FOO"), "bar")
 
     def test_timing_updated_on_reinstall(self):
         self._seed_settings()
-        self._run(["1", "1", "3", "1", "2", "", "5"])  # manual
+        self._run(["1", "1", "3", "1", "2"])  # manual
         self.assertEqual(self._settings()["env"]["WORKLOG_TIMING"], "manual")
 
     def test_dest_updated_on_reinstall(self):
@@ -382,18 +382,18 @@ class TestReinstall(_Base):
         cfg["env"]["NOTION_DB_ID"] = "fake-db"
         with open(os.path.join(d, "settings.json"), "w") as f:
             json.dump(cfg, f, indent=2)
-        self._run(["1", "1", "2", "1", "", "5"])  # notion-only
+        self._run(["1", "1", "2", "1"])  # notion-only
         self.assertEqual(self._settings()["env"]["WORKLOG_DEST"], "notion-only")
 
     def test_backup_created_on_reinstall(self):
         """재설치 시 기존 파일을 .bak 으로 백업"""
-        self._run(["1", "1", "3", "1", "1", "", "5"])   # 첫 설치
-        r = self._run(["1", "1", "3", "1", "1", "", "5"])  # 재설치
+        self._run(["1", "1", "3", "1", "1"])   # 첫 설치
+        r = self._run(["1", "1", "3", "1", "1"])  # 재설치
         self.assertIn("백업", r.stdout)
 
     def test_settings_json_valid_after_reinstall(self):
         self._seed_settings()
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         cfg = self._settings()
         self.assertIsInstance(cfg, dict)
         self.assertIn("env", cfg)
@@ -404,7 +404,7 @@ class TestReinstall(_Base):
         self._seed_settings(
             extra_hooks={"PreToolUse": [{"hooks": [{"type": "command", "command": "/opt/lint.sh", "timeout": 5}]}]}
         )
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         cfg = self._settings()
         self.assertIn("PreToolUse", cfg["hooks"])
         self.assertTrue(any("lint.sh" in c for c in self._hook_commands(cfg, "PreToolUse")))
@@ -435,23 +435,23 @@ class TestExistingSettingsMerge(_Base):
             )
 
     def test_existing_env_preserved(self):
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         env = self._settings()["env"]
         self.assertEqual(env.get("OTHER_KEY"), "v1")
         self.assertEqual(env.get("API_KEY"), "secret")
 
     def test_existing_pretooluse_hook_preserved(self):
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         cmds = self._hook_commands(self._settings(), "PreToolUse")
         self.assertTrue(any("lint.sh" in c for c in cmds))
 
     def test_existing_posttooluse_hook_preserved(self):
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         cmds = self._hook_commands(self._settings(), "PostToolUse")
         self.assertTrue(any("other.sh" in c for c in cmds))
 
     def test_worklog_hook_added_alongside_existing(self):
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         cmds = self._hook_commands(self._settings(), "PostToolUse")
         self.assertTrue(any("worklog.sh" in c for c in cmds))
 
@@ -464,7 +464,7 @@ class TestExistingSettingsMerge(_Base):
 class TestHookStructure(_Base):
     def setUp(self):
         super().setUp()
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         self._cfg = self._settings()
         self._target = os.path.join(self.tmp, ".claude")
 
@@ -528,8 +528,8 @@ class TestEnvFileHandling(_Base):
     def test_env_created_with_new_token(self):
         """토큰 입력 시 .env 파일 생성 및 토큰 기록"""
         self._seed_db_id()
-        # lang=ko, scope=global, dest=both, token=ntn_test_token_abcdef123456, track=yes, timing=stop, interval, mcp
-        self._run(["1", "1", "1", "ntn_test_token_abcdef123456", "1", "1", "", "5"])
+        # lang=ko, scope=global, dest=both, token=ntn_test_token_abcdef123456, track=yes, timing=stop
+        self._run(["1", "1", "1", "ntn_test_token_abcdef123456", "1", "1"])
         env_path = os.path.join(self.tmp, ".claude", ".env")
         self.assertTrue(os.path.exists(env_path))
         with open(env_path) as f:
@@ -537,7 +537,7 @@ class TestEnvFileHandling(_Base):
 
     def test_env_file_permission_600(self):
         self._seed_db_id()
-        self._run(["1", "1", "1", "ntn_test_token_abcdef123456", "1", "1", "", "5"])
+        self._run(["1", "1", "1", "ntn_test_token_abcdef123456", "1", "1"])
         env_path = os.path.join(self.tmp, ".claude", ".env")
         if os.path.exists(env_path):
             mode = stat.S_IMODE(os.stat(env_path).st_mode)
@@ -553,7 +553,7 @@ class TestEnvFileHandling(_Base):
             json.dump({"env": {"NOTION_DB_ID": "fake-db-id"}}, f)
 
         # 토큰이 자동 감지되므로 추가 입력 불필요
-        r = self._run(["1", "1", "1", "1", "1", "", "5"])
+        r = self._run(["1", "1", "1", "1", "1"])
         self.assertIn("기존 NOTION_TOKEN", r.stdout)
         with open(os.path.join(d, ".env")) as f:
             content = f.read()
@@ -569,7 +569,7 @@ class TestEnvFileHandling(_Base):
         with open(os.path.join(d, "settings.json"), "w") as f:
             json.dump({"env": {"NOTION_DB_ID": "fake-db-id"}}, f)
 
-        self._run(["1", "1", "1", "1", "1", "", "5"])
+        self._run(["1", "1", "1", "1", "1"])
         with open(os.path.join(d, ".env")) as f:
             content = f.read()
         # 기존 토큰이 그대로 있어야 함 (재사용 경로)
@@ -589,18 +589,18 @@ class TestLocalScopeInstall(_Base):
         subprocess.run(["git", "-C", self.tmp, "config", "user.name", "Test"], capture_output=True, check=False)
 
     def test_files_in_local_claude_dir(self):
-        r = self._run(["1", "2", "3", "1", "1", "", "5"], cwd=self.tmp)
+        r = self._run(["1", "2", "3", "1", "1"], cwd=self.tmp)
         self.assertEqual(r.returncode, 0, r.stderr)
         self._assert_files(os.path.join(self.tmp, ".claude"))
 
     def test_ai_worklog_dir_is_local_claude(self):
-        self._run(["1", "2", "3", "1", "1", "", "5"], cwd=self.tmp)
+        self._run(["1", "2", "3", "1", "1"], cwd=self.tmp)
         expected = os.path.realpath(os.path.join(self.tmp, ".claude"))
         actual = os.path.realpath(self._settings()["env"]["AI_WORKLOG_DIR"])
         self.assertEqual(actual, expected)
 
     def test_hooks_use_local_paths(self):
-        self._run(["1", "2", "3", "1", "1", "", "5"], cwd=self.tmp)
+        self._run(["1", "2", "3", "1", "1"], cwd=self.tmp)
         cfg = self._settings()
         real_local = os.path.realpath(os.path.join(self.tmp, ".claude"))
         h = self._find_hook(cfg, "PostToolUse", "worklog.sh")
@@ -609,7 +609,7 @@ class TestLocalScopeInstall(_Base):
 
     def test_gitignore_mode_adds_worklogs_entry(self):
         """git-ignore 모드: .gitignore 에 .worklogs/ 추가"""
-        self._run(["1", "2", "3", "2", "1", "", "5"], cwd=self.tmp)
+        self._run(["1", "2", "3", "2", "1"], cwd=self.tmp)
         gitignore = os.path.join(self.tmp, ".gitignore")
         if os.path.exists(gitignore):
             with open(gitignore) as f:
@@ -667,8 +667,8 @@ class TestSelfRepoDetection(_Base):
         subprocess.run(["git", "init", other], capture_output=True)
         subprocess.run(["git", "-C", other, "config", "user.email", "t@t.com"], capture_output=True)
         subprocess.run(["git", "-C", other, "config", "user.name", "T"], capture_output=True)
-        # lang=ko, scope=local, dest=git, track=yes, timing=stop, interval, mcp
-        r = self._run(["1", "2", "3", "1", "1", "", "5"], cwd=other)
+        # lang=ko, scope=local, dest=git, track=yes, timing=stop
+        r = self._run(["1", "2", "3", "1", "1"], cwd=other)
         self.assertEqual(r.returncode, 0, r.stderr)
 
 
@@ -682,19 +682,19 @@ class TestEnglishInstall(_Base):
 
     def test_lang_en_set(self):
         """WORKLOG_LANG=en 설정됨"""
-        # lang=en, scope=global, dest=git, track=yes, timing=stop, interval, mcp
-        r = self._run(["2", "1", "3", "1", "1", "", "5"])
+        # lang=en, scope=global, dest=git, track=yes, timing=stop
+        r = self._run(["2", "1", "3", "1", "1"])
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self._settings()["env"]["WORKLOG_LANG"], "en")
 
     def test_english_output_messages(self):
         """영어 설치 시 영어 메시지 출력"""
-        r = self._run(["2", "1", "3", "1", "1", "", "5"])
+        r = self._run(["2", "1", "3", "1", "1"])
         self.assertIn("installed successfully", r.stdout)
 
     def test_english_files_installed(self):
         """영어 설치에서도 모든 파일 배포됨"""
-        self._run(["2", "1", "3", "1", "1", "", "5"])
+        self._run(["2", "1", "3", "1", "1"])
         self._assert_files(os.path.join(self.tmp, ".claude"))
 
 
@@ -708,13 +708,13 @@ class TestVersionFile(_Base):
 
     def test_version_file_created(self):
         """설치 후 .version 파일 존재"""
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         version_path = os.path.join(self.tmp, ".claude", ".version")
         self.assertTrue(os.path.exists(version_path))
 
     def test_version_file_has_content(self):
         """버전 파일에 SHA 해시가 기록됨"""
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         version_path = os.path.join(self.tmp, ".claude", ".version")
         with open(version_path) as f:
             content = f.read().strip()
@@ -731,7 +731,7 @@ class TestGitHookGlobalInstall(_Base):
 
     def setUp(self):
         super().setUp()
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
 
     def test_git_hooks_dir_exists(self):
         """git-hooks/ 디렉토리 생성됨"""
@@ -778,7 +778,7 @@ class TestGitHookLocalInstall(_Base):
 
     def test_post_commit_installed_in_git_hooks(self):
         """로컬: .git/hooks/post-commit 설치됨"""
-        self._run(["1", "2", "3", "1", "1", "", "5"], cwd=self._project)
+        self._run(["1", "2", "3", "1", "1"], cwd=self._project)
         hook = os.path.join(self._project, ".git", "hooks", "post-commit")
         self.assertTrue(os.path.exists(hook))
         self.assertTrue(os.stat(hook).st_mode & stat.S_IXUSR)
@@ -792,7 +792,7 @@ class TestGitHookLocalInstall(_Base):
             f.write("#!/bin/bash\necho original\n")
         os.chmod(existing, 0o755)
 
-        self._run(["1", "2", "3", "1", "1", "", "5"], cwd=self._project)
+        self._run(["1", "2", "3", "1", "1"], cwd=self._project)
 
         local_hook = os.path.join(hook_dir, "post-commit.local")
         self.assertTrue(os.path.exists(local_hook), "기존 hook이 .local로 보존되어야 함")
@@ -814,13 +814,13 @@ class TestOnCommitHookInstall(_Base):
 
     def test_on_commit_registered_global(self):
         """글로벌 설치: on-commit.sh PostToolUse 등록"""
-        cfg = self._installed_cfg(["1", "1", "3", "1", "1", "", "5"])
+        cfg = self._installed_cfg(["1", "1", "3", "1", "1"])
         found = self._find_hook(cfg, "PostToolUse", "on-commit.sh")
         self.assertIsNotNone(found, "on-commit.sh not found in PostToolUse")
 
     def test_on_commit_has_bash_matcher(self):
         """on-commit.sh 그룹에 matcher=Bash 설정"""
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         cfg = self._settings()
         for group in cfg.get("hooks", {}).get("PostToolUse", []):
             for h in group.get("hooks", []):
@@ -831,7 +831,7 @@ class TestOnCommitHookInstall(_Base):
 
     def test_on_commit_not_async(self):
         """on-commit.sh은 block 반환을 위해 async가 아니어야 함"""
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         cfg = self._settings()
         h = self._find_hook(cfg, "PostToolUse", "on-commit.sh")
         self.assertIsNotNone(h)
@@ -839,20 +839,20 @@ class TestOnCommitHookInstall(_Base):
 
     def test_commit_doc_check_registered(self):
         """commit-doc-check.sh도 PostToolUse에 등록됨"""
-        cfg = self._installed_cfg(["1", "1", "3", "1", "1", "", "5"])
+        cfg = self._installed_cfg(["1", "1", "3", "1", "1"])
         found = self._find_hook(cfg, "PostToolUse", "commit-doc-check.sh")
         self.assertIsNotNone(found, "commit-doc-check.sh not found in PostToolUse")
 
     def test_stop_hook_registered(self):
         """Stop hook에 stop.sh 등록 확인"""
-        cfg = self._installed_cfg(["1", "1", "3", "1", "1", "", "5"])
+        cfg = self._installed_cfg(["1", "1", "3", "1", "1"])
         self.assertIn("Stop", cfg.get("hooks", {}))
         found = self._find_hook(cfg, "Stop", "stop.sh")
         self.assertIsNotNone(found, "stop.sh not found in Stop hooks")
 
     def test_manual_timing_no_on_commit(self):
         """WORKLOG_TIMING=manual이면 on-commit도 등록되지만 동작 안 함 (hook 내부에서 스킵)"""
-        cfg = self._installed_cfg(["1", "1", "3", "1", "2", "", "5"])
+        cfg = self._installed_cfg(["1", "1", "3", "1", "2"])
         # on-commit.sh는 등록되어 있고 내부에서 WORKLOG_TIMING=manual 체크
         found = self._find_hook(cfg, "PostToolUse", "on-commit.sh")
         self.assertIsNotNone(found)
@@ -885,7 +885,7 @@ class TestBackwardCompatMarkers(_Base):
         with open(hook_path, "w") as f:
             f.write(old_hook)
 
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
 
         with open(hook_path) as f:
             content = f.read()
@@ -909,44 +909,12 @@ class TestBackwardCompatMarkers(_Base):
         with open(hook_path, "w") as f:
             f.write(new_hook)
 
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
 
         with open(hook_path) as f:
             content = f.read()
         self.assertIn("worklog-for-claude start", content)
         self.assertNotIn("existing_managed", content, "관리 블록 내용은 새 것으로 교체")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 18. MCP Skip 버그 수정 검증
-# ══════════════════════════════════════════════════════════════════════════════
-
-
-class TestMcpSkip(_Base):
-    """MCP 선택 5(건너뜀) 시 mcpServers 미추가"""
-
-    def setUp(self):
-        super().setUp()
-        # 전역 git + stop + MCP interval=5 + MCP skip=5
-        self.result = self._run(["1", "1", "3", "1", "1", "5", "5"])
-
-    def test_skip_does_not_write_mcp_servers(self):
-        """5 선택 시 settings.json에 mcpServers 키 없음"""
-        cfg = self._settings()
-        self.assertNotIn("mcpServers", cfg)
-
-    def test_skip_does_not_create_cursor_config(self):
-        """5 선택 시 cursor mcp.json 미생성"""
-        cursor_cfg = os.path.join(self.tmp, ".cursor", "mcp.json")
-        self.assertFalse(os.path.exists(cursor_cfg))
-
-    def test_skip_message_shown(self):
-        """건너뜀 메시지 출력"""
-        out = self.result.stdout + self.result.stderr
-        self.assertTrue(
-            "건너뜀" in out or "skipped" in out.lower(),
-            "skip message should appear in output",
-        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -967,7 +935,7 @@ class TestCurlFallback(_Base):
 
         result = subprocess.run(
             ["bash", isolated_script],
-            input="1\n1\n3\n1\n1\n5\n5\n",
+            input="1\n1\n3\n1\n1\n",
             capture_output=True,
             text=True,
             env=self._env(),
@@ -989,7 +957,7 @@ class TestCurlFallback(_Base):
 
         subprocess.run(
             ["bash", isolated_script],
-            input="1\n1\n3\n1\n1\n5\n5\n",
+            input="1\n1\n3\n1\n1\n",
             capture_output=True,
             text=True,
             env=self._env(),
@@ -1014,7 +982,7 @@ class TestUninstall(_Base):
         super().setUp()
         self.target = os.path.join(self.tmp, ".claude")
         # 전역 설치
-        self._run(["1", "1", "3", "1", "1", "5", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         # .worklogs + .env 생성 (보존 대상)
         wl_dir = os.path.join(self.tmp, "project", ".worklogs")
         os.makedirs(wl_dir, exist_ok=True)
@@ -1089,7 +1057,7 @@ class TestUninstall(_Base):
         # post-commit.sh가 없으므로 "not found" 에러
         # → 이건 감지 로직 문제이므로 skip
         # 재설치 후 두 번째 제거
-        self._run(["1", "1", "3", "1", "1", "5", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         r2 = self._run_uninstall()
         self.assertEqual(r2.returncode, 0)
 
@@ -1106,7 +1074,7 @@ class TestUninstallMarkerBlock(_Base):
         super().setUp()
         self.target = os.path.join(self.tmp, ".claude")
         # 전역 설치
-        self._run(["1", "1", "3", "1", "1", "5", "5"])
+        self._run(["1", "1", "3", "1", "1"])
 
     def _run_uninstall(self) -> subprocess.CompletedProcess:
         return subprocess.run(
@@ -1195,7 +1163,7 @@ class TestInstallUninstallCycle(_Base):
 
     def test_global_install_then_uninstall(self):
         """전역 설치 → 제거 → worklog 흔적 없음"""
-        self._run(["1", "1", "3", "1", "1", "5", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         target = os.path.join(self.tmp, ".claude")
         self._assert_files(target)
 
@@ -1218,7 +1186,7 @@ class TestInstallUninstallCycle(_Base):
     def test_reinstall_after_uninstall(self):
         """제거 후 재설치 정상"""
         # 설치
-        self._run(["1", "1", "3", "1", "1", "5", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         # 제거
         subprocess.run(
             ["bash", UNINSTALL_SCRIPT],
@@ -1226,7 +1194,7 @@ class TestInstallUninstallCycle(_Base):
             env=self._env(), cwd=self.tmp, timeout=30,
         )
         # 재설치
-        r = self._run(["1", "1", "3", "1", "1", "5", "5"])
+        r = self._run(["1", "1", "3", "1", "1"])
         self.assertEqual(r.returncode, 0, f"reinstall failed: {r.stderr}")
         target = os.path.join(self.tmp, ".claude")
         self._assert_files(target)
@@ -1243,7 +1211,7 @@ class TestInstallUninstallCycle(_Base):
         )
 
         # 로컬 설치
-        r = self._run(["1", "2", "3", "1", "1", "5", "5"], cwd=project)
+        r = self._run(["1", "2", "3", "1", "1"], cwd=project)
         self.assertEqual(r.returncode, 0, f"local install failed: {r.stderr}")
         target = os.path.join(project, ".claude")
         self._assert_files(target)
@@ -1271,15 +1239,15 @@ class TestNonGitLocalGitIgnore(_Base):
         # git repo 아닌 빈 디렉토리
         project = os.path.join(self.tmp, "nongit")
         os.makedirs(project)
-        # local(2), git(3), git-ignore(2), stop(1), mcp skip
-        r = self._run(["1", "2", "3", "2", "1", "5", "5"], cwd=project)
+        # local(2), git(3), git-ignore(2), stop(1)
+        r = self._run(["1", "2", "3", "2", "1"], cwd=project)
         self.assertEqual(r.returncode, 0, f"should not crash: {r.stderr}")
 
     def test_files_installed(self):
         """파일 설치 정상"""
         project = os.path.join(self.tmp, "nongit2")
         os.makedirs(project)
-        self._run(["1", "2", "3", "2", "1", "5", "5"], cwd=project)
+        self._run(["1", "2", "3", "2", "1"], cwd=project)
         target = os.path.join(project, ".claude")
         self._assert_files(target)
 
@@ -1287,7 +1255,7 @@ class TestNonGitLocalGitIgnore(_Base):
         """.gitignore 생성 안 됨 (git repo 아니니까)"""
         project = os.path.join(self.tmp, "nongit3")
         os.makedirs(project)
-        self._run(["1", "2", "3", "2", "1", "5", "5"], cwd=project)
+        self._run(["1", "2", "3", "2", "1"], cwd=project)
         self.assertFalse(os.path.exists(os.path.join(project, ".gitignore")))
 
 
@@ -1301,8 +1269,7 @@ class TestArgvIndexing(_Base):
 
     def test_doc_check_interval_is_number(self):
         """PROJECT_DOC_CHECK_INTERVAL이 'false'가 아닌 숫자"""
-        # MCP interval 입력 = "5", MCP client = skip
-        self._run(["1", "1", "3", "1", "1", "5", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         cfg = self._settings()
         val = cfg.get("env", {}).get("PROJECT_DOC_CHECK_INTERVAL", "")
         self.assertNotEqual(val, "false", "should not be 'false' (argv bug)")
@@ -1319,13 +1286,13 @@ class TestTimingValue(_Base):
 
     def test_stop_timing(self):
         """stop(1) 선택 시 WORKLOG_TIMING=stop"""
-        self._run(["1", "1", "3", "1", "1", "5", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         cfg = self._settings()
         self.assertEqual(cfg["env"]["WORKLOG_TIMING"], "stop")
 
     def test_manual_timing(self):
         """manual(2) 선택 시 WORKLOG_TIMING=manual"""
-        self._run(["1", "1", "3", "1", "2", "5", "5"])
+        self._run(["1", "1", "3", "1", "2"])
         cfg = self._settings()
         self.assertEqual(cfg["env"]["WORKLOG_TIMING"], "manual")
 
@@ -1333,7 +1300,7 @@ class TestTimingValue(_Base):
 class TestTimingStopDefault(_Base):
     """신규 설치 시 WORKLOG_TIMING=stop"""
     def test_stop_timing(self):
-        self._run(["1", "1", "3", "1", "1", "", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         cfg = self._settings()
         self.assertEqual(cfg["env"]["WORKLOG_TIMING"], "stop")
 
@@ -1347,7 +1314,7 @@ class TestStopShInstalled(_Base):
     """신규 설치 시 hooks/stop.sh 설치됨"""
 
     def test_stop_sh_exists(self):
-        self._run(["1", "1", "3", "1", "1", "5", "5"])
+        self._run(["1", "1", "3", "1", "1"])
         target = os.path.join(self.tmp, ".claude")
         self.assertTrue(
             os.path.exists(os.path.join(target, "hooks", "stop.sh")),
@@ -1365,7 +1332,7 @@ class TestSummaryOutput(_Base):
 
     def test_hooks_summary_correct(self):
         """Hooks 요약에 PostToolUse (3), SessionStart, SessionEnd"""
-        r = self._run(["1", "1", "3", "1", "1", "5", "5"])
+        r = self._run(["1", "1", "3", "1", "1"])
         out = r.stdout
         self.assertIn("PostToolUse (3)", out)
         self.assertIn("SessionStart", out)
@@ -1373,18 +1340,10 @@ class TestSummaryOutput(_Base):
 
     def test_no_auto_commit_line(self):
         """AUTO_COMMIT 요약 줄 없음"""
-        r = self._run(["1", "1", "3", "1", "1", "5", "5"])
+        r = self._run(["1", "1", "3", "1", "1"])
         out = r.stdout
         self.assertNotIn("Auto-Commit", out)
         self.assertNotIn("자동 커밋", out)
-
-    def test_no_mcp_line_when_skip(self):
-        """MCP skip 시 MCP 줄 없음"""
-        r = self._run(["1", "1", "3", "1", "1", "5", "5"])
-        out = r.stdout
-        # MCP 줄이 요약 부분에 없어야 함 (설치 완료 이후)
-        summary_section = out.split("설치 완료")[-1] if "설치 완료" in out else out
-        self.assertNotIn("uvx worklog-for-claude (interval", summary_section)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1395,7 +1354,7 @@ class TestSummaryOutput(_Base):
 class TestWorklogConfigCommand(_Base):
     """worklog-config.md 설치·동기화 검증"""
 
-    _INPUTS = ["1", "1", "3", "1", "1", "5", "5"]
+    _INPUTS = ["1", "1", "3", "1", "1"]
 
     def test_worklog_config_installed_with_frontmatter(self):
         """설치 후 worklog-config.md에 description frontmatter 존재"""

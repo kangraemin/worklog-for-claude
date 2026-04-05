@@ -52,13 +52,11 @@ def _write_stub(path: str, content: str = "#!/bin/bash\necho stub\n") -> None:
     os.chmod(path, 0o755)
 
 
-def _make_settings(env: dict, hooks: dict | None = None, mcp: dict | None = None) -> dict:
+def _make_settings(env: dict, hooks: dict | None = None) -> dict:
     """settings.json 구조 생성"""
     cfg: dict = {"env": env}
     if hooks is not None:
         cfg["hooks"] = hooks
-    if mcp is not None:
-        cfg["mcpServers"] = mcp
     return cfg
 
 
@@ -79,15 +77,6 @@ def _default_hooks(target_dir: str) -> dict:
         "Stop": [
             {"hooks": [{"type": "command", "command": f"{target_dir}/hooks/stop.sh", "timeout": 15}]},
         ],
-    }
-
-
-def _default_mcp() -> dict:
-    return {
-        "worklog-for-claude": {
-            "command": "uvx",
-            "args": ["worklog-for-claude"],
-        }
     }
 
 
@@ -130,8 +119,7 @@ class _Base(unittest.TestCase):
         # settings.json
         env = _default_env(self.target, dest)
         hooks = _default_hooks(self.target)
-        mcp = _default_mcp()
-        cfg = _make_settings(env, hooks, mcp)
+        cfg = _make_settings(env, hooks)
         with open(os.path.join(self.target, "settings.json"), "w") as f:
             json.dump(cfg, f, indent=2)
 
@@ -245,7 +233,6 @@ class TestHealthyNotionOnly(_Base):
         self.assertEqual(r["files_found"], 17)
         self.assertEqual(r["hooks_found"], 6)
         self.assertEqual(r["git_hook"], "ok")
-        self.assertEqual(r["mcp"], "ok")
         self.assertEqual(r["env"], "ok")
         self.assertEqual(r["issue_count"], 0)
 
@@ -514,50 +501,6 @@ class TestGitHookNoExecPermission(_Base):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# E. MCP 서버 비정상
-# ══════════════════════════════════════════════════════════════════════════════
-
-
-class TestMcpMissing(_Base):
-    """TC-24: mcpServers에 worklog-for-claude 없음"""
-
-    def test_mcp_missing(self):
-        self._setup_full()
-        cfg = self._read_settings()
-        del cfg["mcpServers"]["worklog-for-claude"]
-        self._write_settings(cfg)
-        r = self._run_healthcheck()
-        self.assertEqual(r["mcp"], "missing")
-
-
-class TestMcpSectionMissing(_Base):
-    """TC-25: mcpServers 섹션 없음"""
-
-    def test_mcp_section_missing(self):
-        self._setup_full()
-        cfg = self._read_settings()
-        del cfg["mcpServers"]
-        self._write_settings(cfg)
-        r = self._run_healthcheck()
-        self.assertEqual(r["mcp"], "missing")
-
-
-class TestMcpCommandMismatch(_Base):
-    """TC-26: MCP command 불일치"""
-
-    def test_mcp_mismatch(self):
-        self._setup_full()
-        cfg = self._read_settings()
-        cfg["mcpServers"]["worklog-for-claude"] = {
-            "command": "node",
-            "args": ["some-other-thing"],
-        }
-        self._write_settings(cfg)
-        r = self._run_healthcheck()
-        self.assertEqual(r["mcp"], "mismatch")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
 # F. 환경변수 비정상
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -806,10 +749,6 @@ class TestOverallFail(_Base):
             os.remove(os.path.join(self.target, f))
         # hook 1개 제거
         self._remove_hook("session-end.sh")
-        # MCP 제거
-        cfg = self._read_settings()
-        del cfg["mcpServers"]
-        self._write_settings(cfg)
         r = self._run_healthcheck()
         self.assertEqual(r["status"], "fail")
         self.assertGreaterEqual(r["issue_count"], 3)
@@ -833,7 +772,7 @@ class TestOverallPass(_Base):
 class _RecoveryBase(_Base):
     """복구 테스트 공통: install.sh로 정상 설치 후 파괴 → 재설치 → healthcheck"""
 
-    # install.sh 입력: lang=ko, scope=global, dest=git, track=yes, timing=auto, interval=default, mcp=skip
+    # install.sh 입력: lang=ko, scope=global, dest=git, track=yes, timing=auto, interval=default
     _GIT_INPUTS = ["1", "1", "3", "1", "1", "", "5"]
 
     def _install(self, inputs: list[str] | None = None):
@@ -918,7 +857,7 @@ class TestRecoveryGitHook(_RecoveryBase):
 class TestRecoveryEnvFile(_RecoveryBase):
     """TC-50: .env 삭제 (notion 모드) → 재설치 → 복구"""
 
-    # lang=ko, scope=global, dest=both, track=yes, timing=auto, interval, mcp
+    # lang=ko, scope=global, dest=both, track=yes, timing=auto, interval
     # Notion 사전 주입으로 .env 재생성 확인
     def test_recovery(self):
         # .env 사전 주입 후 설치
@@ -946,32 +885,6 @@ class TestRecoveryEnvFile(_RecoveryBase):
             "HEALTHCHECK_GIT_HOOKS_PATH": os.path.join(target, "git-hooks"),
         })
         self.assertTrue(os.path.exists(env_file))
-
-
-class TestRecoveryMcp(_RecoveryBase):
-    """TC-51: MCP 삭제 → 재설치 → 복구"""
-
-    def test_recovery(self):
-        self._install()
-        target = os.path.join(self.tmp, ".claude")
-        sf = os.path.join(target, "settings.json")
-        with open(sf) as f:
-            cfg = json.load(f)
-        if "mcpServers" in cfg:
-            del cfg["mcpServers"]
-        with open(sf, "w") as f:
-            json.dump(cfg, f, indent=2)
-        r = self._run_healthcheck({
-            "AI_WORKLOG_DIR": target,
-            "HEALTHCHECK_SETTINGS": sf,
-            "HEALTHCHECK_GIT_HOOKS_PATH": os.path.join(target, "git-hooks"),
-        })
-        self.assertEqual(r["mcp"], "missing")
-        # MCP는 uv가 설치돼있어야 install.sh가 등록함 — 이건 환경 의존적이므로 스킵 가능
-        # 대신 MCP 빼고 나머지가 복구되는지 확인
-        self._install()
-        r2 = self._healthcheck_after_install()
-        self.assertEqual(r2["files_found"], r2["files_total"])
 
 
 class TestRecoveryEnvVars(_RecoveryBase):

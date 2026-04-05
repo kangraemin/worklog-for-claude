@@ -210,32 +210,6 @@ fi
 _add_result "git_hook" "\"$GIT_HOOK_STATUS\""
 [ -n "$GIT_HOOK_DETAIL" ] && _add_result "git_hook_detail" "\"$GIT_HOOK_DETAIL\""
 
-# ── 5. MCP 서버 ────────────────────────────────────────────────────────────
-MCP_STATUS=$($PYTHON -c "
-import json, sys
-sf = sys.argv[1]
-with open(sf) as f:
-    cfg = json.load(f)
-servers = cfg.get('mcpServers', {})
-wl = servers.get('worklog-for-claude')
-if wl is None:
-    print('missing')
-else:
-    cmd = wl.get('command', '')
-    args = wl.get('args', [])
-    full = cmd + ' ' + ' '.join(args) if args else cmd
-    if 'worklog-for-claude' in full:
-        print('ok')
-    else:
-        print('mismatch')
-" "$SETTINGS" 2>/dev/null || echo "missing")
-
-_add_result "mcp" "\"$MCP_STATUS\""
-if [ "$MCP_STATUS" = "missing" ]; then
-  _add_issue "MCP 서버: worklog-for-claude 미등록"
-elif [ "$MCP_STATUS" = "mismatch" ]; then
-  _add_issue "MCP 서버: command 불일치"
-fi
 
 # ── 6. 환경변수 ────────────────────────────────────────────────────────────
 ENV_ISSUES=()
@@ -361,13 +335,6 @@ case "$GIT_HOOK_STATUS" in
   ok)   echo "  Git Hook:    ✅ core.hooksPath + post-commit" ;;
   warn) echo "  Git Hook:    ⚠️ $GIT_HOOK_DETAIL" ;;
   *)    echo "  Git Hook:    ❌ $GIT_HOOK_DETAIL" ;;
-esac
-
-# MCP
-case "$MCP_STATUS" in
-  ok)       echo "  MCP 서버:    ✅ worklog-for-claude 등록됨" ;;
-  mismatch) echo "  MCP 서버:    ⚠️ command 불일치" ;;
-  *)        echo "  MCP 서버:    ❌ worklog-for-claude 미등록" ;;
 esac
 
 # 환경변수
