@@ -11,8 +11,8 @@ command -v jq &>/dev/null || exit 0
 [ "${WORKLOG_TIMING:-stop}" = "manual" ] && exit 0
 
 # 자동 업데이트 체크 (24h throttle, 백그라운드)
-if [ -n "${AI_WORKLOG_DIR:-}" ] && [ -f "$AI_WORKLOG_DIR/scripts/update-check.sh" ]; then
-  UPDATE_MSG=$(bash "$AI_WORKLOG_DIR/scripts/update-check.sh" 2>/dev/null)
+if [ -n "${AI_WORKLOG_DIR:-}" ] && [ -f "$AI_WORKLOG_DIR/scripts/worklog-update-check.sh" ]; then
+  UPDATE_MSG=$(bash "$AI_WORKLOG_DIR/scripts/worklog-update-check.sh" 2>/dev/null)
   [ -n "$UPDATE_MSG" ] && echo "$UPDATE_MSG"
 fi
 

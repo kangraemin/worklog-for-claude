@@ -325,7 +325,7 @@ worklog-for-claude/
 │   ├── notion-worklog.sh   # Notion API page creation
 │   ├── notion-create-db.sh # Notion database auto-creation
 │   ├── notion-migrate-worklogs.sh  # Bulk .md → Notion
-│   └── update-check.sh    # Version check against remote
+│   └── worklog-update-check.sh    # Version check against remote
 ├── commands/               # Claude Code skill definitions
 │   ├── worklog.md          # /worklog
 │   ├── worklog-migrate.md  # /worklog-migrate
@@ -346,7 +346,7 @@ worklog-for-claude/
 | `PostToolUse` | `hooks/worklog.sh` | Collects tool usage into per-session JSONL |
 | `PostToolUse` (Bash) | `hooks/on-commit.sh` | Detects `git commit` and requests `/worklog` |
 | `PostToolUse` | `hooks/commit-doc-check.sh` | Checks if PROJECT.md needs updating |
-| `SessionStart` | `scripts/update-check.sh` | Version check against GitHub (24h throttle) |
+| `SessionStart` | `scripts/worklog-update-check.sh` | Version check against GitHub (24h throttle) |
 | `SessionEnd` | `hooks/session-end.sh` | Cleans up session collection file |
 
 > The installer removes any existing Stop hooks for worklog — `PostToolUse` (`on-commit.sh`) handles commit detection instead.

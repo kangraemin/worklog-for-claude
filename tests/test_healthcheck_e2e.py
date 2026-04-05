@@ -26,7 +26,7 @@ EXPECTED_FILES = [
     "scripts/notion-worklog.sh",
     "scripts/duration.py",
     "scripts/token-cost.py",
-    "scripts/update-check.sh",
+    "scripts/worklog-update-check.sh",
     "hooks/worklog.sh",
     "hooks/on-commit.sh",
     "hooks/session-end.sh",
@@ -42,7 +42,7 @@ EXPECTED_FILES = [
 ]
 
 # 5개 hook 확인 대상
-HOOK_FILES = ["worklog.sh", "on-commit.sh", "commit-doc-check.sh", "update-check.sh", "session-end.sh", "stop.sh"]
+HOOK_FILES = ["worklog.sh", "on-commit.sh", "commit-doc-check.sh", "worklog-update-check.sh", "session-end.sh", "stop.sh"]
 
 
 def _write_stub(path: str, content: str = "#!/bin/bash\necho stub\n") -> None:
@@ -69,7 +69,7 @@ def _default_hooks(target_dir: str) -> dict:
             {"hooks": [{"type": "command", "command": f"{target_dir}/hooks/commit-doc-check.sh", "timeout": 5}]},
         ],
         "SessionStart": [
-            {"hooks": [{"type": "command", "command": f"{target_dir}/scripts/update-check.sh", "timeout": 15, "async": True}]},
+            {"hooks": [{"type": "command", "command": f"{target_dir}/scripts/worklog-update-check.sh", "timeout": 15, "async": True}]},
         ],
         "SessionEnd": [
             {"hooks": [{"type": "command", "command": f"{target_dir}/hooks/session-end.sh", "timeout": 15}]},
@@ -391,14 +391,14 @@ class TestMissingSessionEndHook(_Base):
 
 
 class TestMissingUpdateCheckHook(_Base):
-    """TC-15: update-check.sh hook만 제거"""
+    """TC-15: worklog-update-check.sh hook만 제거"""
 
     def test_hook_missing(self):
         self._setup_full()
-        self._remove_hook("update-check.sh")
+        self._remove_hook("worklog-update-check.sh")
         r = self._run_healthcheck()
         self.assertEqual(r["hooks_found"], 5)
-        self.assertIn("update-check.sh", r["hooks_missing"])
+        self.assertIn("worklog-update-check.sh", r["hooks_missing"])
 
 
 class TestMissingCommitDocCheckHook(_Base):

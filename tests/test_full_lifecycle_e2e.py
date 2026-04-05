@@ -566,7 +566,7 @@ EXPECTED_HOOKS = {
 }
 EXPECTED_SCRIPTS = {
     "worklog-write.sh", "notion-worklog.sh", "notion-migrate-worklogs.sh",
-    "token-cost.py", "duration.py", "update-check.sh",
+    "token-cost.py", "duration.py", "worklog-update-check.sh",
 }
 EXPECTED_COMMANDS = {
     "worklog.md", "worklog-migrate.md", "worklog-update.md",
@@ -683,7 +683,7 @@ class TestUninstallFull(_LifecycleBase):
     def test_settings_hooks_clean(self):
         cfg = self._settings(self.target)
         WORKLOG_MARKERS = ["worklog.sh", "on-commit.sh", "commit-doc-check.sh",
-                           "session-end.sh", "update-check.sh"]
+                           "session-end.sh", "worklog-update-check.sh"]
         for event, groups in cfg.get("hooks", {}).items():
             for g in groups:
                 for h in g.get("hooks", []):
@@ -881,7 +881,7 @@ class TestTimingMigration(_LifecycleBase):
         self.assertEqual(cfg["env"]["WORKLOG_TIMING"], "manual")
 
     def test_update_check_migrates_each_commit(self):
-        """update-check.sh 마이그레이션 로직이 each-commit→stop 변환"""
+        """worklog-update-check.sh 마이그레이션 로직이 each-commit→stop 변환"""
         # settings.json에 each-commit 세팅
         target = os.path.join(self.tmp, ".claude")
         os.makedirs(target, exist_ok=True)
@@ -890,7 +890,7 @@ class TestTimingMigration(_LifecycleBase):
         with open(settings_path, "w") as f:
             json.dump(cfg, f, indent=2)
 
-        # update-check.sh의 마이그레이션 로직 직접 실행
+        # worklog-update-check.sh의 마이그레이션 로직 직접 실행
         migrate_script = f"""
 import json, sys
 sf = sys.argv[1]
@@ -916,21 +916,21 @@ if env.get('WORKLOG_TIMING') == 'each-commit':
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 21. update-check.sh hook 등록 검증
+# 21. worklog-update-check.sh hook 등록 검증
 # ══════════════════════════════════════════════════════════════════════════════
 
 
 class TestUpdateCheckHookRegister(unittest.TestCase):
-    """update-check.sh의 _ensure_hook이 누락 hook을 settings.json에 등록"""
+    """worklog-update-check.sh의 _ensure_hook이 누락 hook을 settings.json에 등록"""
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="ai_wl_uc_")
         self.target = os.path.join(self.tmp, ".claude")
         os.makedirs(os.path.join(self.target, "hooks"), exist_ok=True)
         os.makedirs(os.path.join(self.target, "scripts"), exist_ok=True)
-        # 스텁 파일 생성 (update-check.sh가 참조)
+        # 스텁 파일 생성 (worklog-update-check.sh가 참조)
         for f in ["hooks/worklog.sh", "hooks/on-commit.sh", "hooks/commit-doc-check.sh",
-                   "hooks/session-end.sh", "hooks/stop.sh", "scripts/update-check.sh"]:
+                   "hooks/session-end.sh", "hooks/stop.sh", "scripts/worklog-update-check.sh"]:
             path = os.path.join(self.target, f)
             with open(path, "w") as fh:
                 fh.write("#!/bin/bash\nexit 0\n")
@@ -945,7 +945,7 @@ class TestUpdateCheckHookRegister(unittest.TestCase):
         with open(settings_path, "w") as f:
             json.dump(settings_cfg, f, indent=2)
 
-        # _ensure_hook 로직을 Python으로 직접 실행 (update-check.sh의 핵심 로직)
+        # _ensure_hook 로직을 Python으로 직접 실행 (worklog-update-check.sh의 핵심 로직)
         script = '''
 import json, sys, os
 
@@ -956,7 +956,7 @@ HOOK_DEFS = [
     ("PostToolUse",  f"{target_dir}/hooks/worklog.sh",           5,  True,  ""),
     ("PostToolUse",  f"{target_dir}/hooks/on-commit.sh",         5,  False, "Bash"),
     ("PostToolUse",  f"{target_dir}/hooks/commit-doc-check.sh",  5,  False, ""),
-    ("SessionStart", f"{target_dir}/scripts/update-check.sh",   15,  True,  ""),
+    ("SessionStart", f"{target_dir}/scripts/worklog-update-check.sh",   15,  True,  ""),
     ("SessionEnd",   f"{target_dir}/hooks/session-end.sh",      15,  False, ""),
     ("Stop",         f"{target_dir}/hooks/stop.sh",             15,  False, ""),
 ]
@@ -1050,7 +1050,7 @@ print(added)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 22. update-check.sh throttle 상태에서도 _ensure_hook 실행 검증
+# 22. worklog-update-check.sh throttle 상태에서도 _ensure_hook 실행 검증
 # ══════════════════════════════════════════════════════════════════════════════
 
 
@@ -1064,7 +1064,7 @@ class TestEnsureHookRunsWhenThrottled(unittest.TestCase):
         os.makedirs(os.path.join(self.target, "scripts"), exist_ok=True)
         # 스텁 파일 생성
         for f in ["hooks/worklog.sh", "hooks/on-commit.sh", "hooks/commit-doc-check.sh",
-                   "hooks/session-end.sh", "hooks/stop.sh", "scripts/update-check.sh"]:
+                   "hooks/session-end.sh", "hooks/stop.sh", "scripts/worklog-update-check.sh"]:
             path = os.path.join(self.target, f)
             with open(path, "w") as fh:
                 fh.write("#!/bin/bash\nexit 0\n")
@@ -1074,7 +1074,7 @@ class TestEnsureHookRunsWhenThrottled(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_ensure_hook_runs_even_when_throttled(self):
-        """throttle 활성 상태에서 update-check.sh 실행 → 누락 hook 복구"""
+        """throttle 활성 상태에서 worklog-update-check.sh 실행 → 누락 hook 복구"""
         import time
 
         # settings.json: Stop hook 누락 상태
@@ -1093,8 +1093,8 @@ class TestEnsureHookRunsWhenThrottled(unittest.TestCase):
         with open(version_file, "w") as f:
             f.write("abc1234")
 
-        # update-check.sh 실행 (throttle에서 exit하므로 네트워크 미사용)
-        update_script = os.path.join(PACKAGE_DIR, "scripts", "update-check.sh")
+        # worklog-update-check.sh 실행 (throttle에서 exit하므로 네트워크 미사용)
+        update_script = os.path.join(PACKAGE_DIR, "scripts", "worklog-update-check.sh")
         env = {
             "HOME": self.tmp,
             "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
@@ -1127,7 +1127,7 @@ class TestEnsureHookRunsWhenThrottled(unittest.TestCase):
                 {"hooks": [{"type": "command", "command": f"{self.target}/hooks/on-commit.sh", "timeout": 5}], "matcher": "Bash"},
                 {"hooks": [{"type": "command", "command": f"{self.target}/hooks/commit-doc-check.sh", "timeout": 5}]},
             ],
-            "SessionStart": [{"hooks": [{"type": "command", "command": f"{self.target}/scripts/update-check.sh", "timeout": 15, "async": True}]}],
+            "SessionStart": [{"hooks": [{"type": "command", "command": f"{self.target}/scripts/worklog-update-check.sh", "timeout": 15, "async": True}]}],
             "SessionEnd": [{"hooks": [{"type": "command", "command": f"{self.target}/hooks/session-end.sh", "timeout": 15}]}],
         }}
         with open(settings_path, "w") as f:
@@ -1141,7 +1141,7 @@ class TestEnsureHookRunsWhenThrottled(unittest.TestCase):
         with open(version_file, "w") as f:
             f.write("abc1234")
 
-        update_script = os.path.join(PACKAGE_DIR, "scripts", "update-check.sh")
+        update_script = os.path.join(PACKAGE_DIR, "scripts", "worklog-update-check.sh")
         env = {
             "HOME": self.tmp,
             "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
@@ -1174,7 +1174,7 @@ class TestCheckOnlySkipsThrottle(unittest.TestCase):
         os.makedirs(os.path.join(self.target, "hooks"), exist_ok=True)
         os.makedirs(os.path.join(self.target, "scripts"), exist_ok=True)
         for f in ["hooks/worklog.sh", "hooks/on-commit.sh", "hooks/commit-doc-check.sh",
-                   "hooks/session-end.sh", "hooks/stop.sh", "scripts/update-check.sh"]:
+                   "hooks/session-end.sh", "hooks/stop.sh", "scripts/worklog-update-check.sh"]:
             path = os.path.join(self.target, f)
             with open(path, "w") as fh:
                 fh.write("#!/bin/bash\nexit 0\n")
@@ -1193,7 +1193,7 @@ class TestCheckOnlySkipsThrottle(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _run(self, *args):
-        update_script = os.path.join(PACKAGE_DIR, "scripts", "update-check.sh")
+        update_script = os.path.join(PACKAGE_DIR, "scripts", "worklog-update-check.sh")
         env = {
             "HOME": self.tmp,
             "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
@@ -1227,7 +1227,7 @@ class TestCheckOnlySkipsThrottle(unittest.TestCase):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 23. update-check.sh PROJECT.md 생성 안내 (프로젝트별 1회)
+# 23. worklog-update-check.sh PROJECT.md 생성 안내 (프로젝트별 1회)
 # ══════════════════════════════════════════════════════════════════════════════
 
 
@@ -1241,7 +1241,7 @@ class TestProjectMdPrompt(unittest.TestCase):
         os.makedirs(os.path.join(self.target, "scripts"), exist_ok=True)
         # 스텁 파일 생성
         for f in ["hooks/worklog.sh", "hooks/on-commit.sh", "hooks/commit-doc-check.sh",
-                   "hooks/session-end.sh", "hooks/stop.sh", "scripts/update-check.sh"]:
+                   "hooks/session-end.sh", "hooks/stop.sh", "scripts/worklog-update-check.sh"]:
             path = os.path.join(self.target, f)
             with open(path, "w") as fh:
                 fh.write("#!/bin/bash\nexit 0\n")
@@ -1255,7 +1255,7 @@ class TestProjectMdPrompt(unittest.TestCase):
                 {"hooks": [{"type": "command", "command": f"{self.target}/hooks/on-commit.sh", "timeout": 5}], "matcher": "Bash"},
                 {"hooks": [{"type": "command", "command": f"{self.target}/hooks/commit-doc-check.sh", "timeout": 5}]},
             ],
-            "SessionStart": [{"hooks": [{"type": "command", "command": f"{self.target}/scripts/update-check.sh", "timeout": 15, "async": True}]}],
+            "SessionStart": [{"hooks": [{"type": "command", "command": f"{self.target}/scripts/worklog-update-check.sh", "timeout": 15, "async": True}]}],
             "SessionEnd": [{"hooks": [{"type": "command", "command": f"{self.target}/hooks/session-end.sh", "timeout": 15}]}],
         }}
         with open(settings_path, "w") as f:
@@ -1284,7 +1284,7 @@ class TestProjectMdPrompt(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _run_update_check(self):
-        update_script = os.path.join(PACKAGE_DIR, "scripts", "update-check.sh")
+        update_script = os.path.join(PACKAGE_DIR, "scripts", "worklog-update-check.sh")
         env = {
             "HOME": self.tmp,
             "PATH": os.environ.get("PATH", "/usr/bin:/bin"),

@@ -85,7 +85,7 @@ EXPECTED_FILES=(
   "scripts/notion-worklog.sh"
   "scripts/duration.py"
   "scripts/token-cost.py"
-  "scripts/update-check.sh"
+  "scripts/worklog-update-check.sh"
   "hooks/worklog.sh"
   "hooks/on-commit.sh"
   "hooks/session-end.sh"
@@ -125,7 +125,7 @@ HOOK_CHECKS=(
   "worklog.sh:PostToolUse:"
   "on-commit.sh:PostToolUse:Bash"
   "commit-doc-check.sh:PostToolUse:"
-  "update-check.sh:SessionStart:"
+  "worklog-update-check.sh:SessionStart:"
   "session-end.sh:SessionEnd:"
   "stop.sh:Stop:"
 )

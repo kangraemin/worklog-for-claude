@@ -410,7 +410,7 @@ copy_file "$PACKAGE_DIR/scripts/notion-worklog.sh"          "$TARGET_DIR/scripts
 copy_file "$PACKAGE_DIR/scripts/notion-migrate-worklogs.sh" "$TARGET_DIR/scripts/notion-migrate-worklogs.sh"
 copy_file "$PACKAGE_DIR/scripts/duration.py"                "$TARGET_DIR/scripts/duration.py"
 copy_file "$PACKAGE_DIR/scripts/token-cost.py"             "$TARGET_DIR/scripts/token-cost.py"
-copy_file "$PACKAGE_DIR/scripts/update-check.sh"            "$TARGET_DIR/scripts/update-check.sh"
+copy_file "$PACKAGE_DIR/scripts/worklog-update-check.sh"            "$TARGET_DIR/scripts/worklog-update-check.sh"
 copy_file "$PACKAGE_DIR/scripts/worklog-write.sh"           "$TARGET_DIR/scripts/worklog-write.sh"
 
 # hooks (관리 블록만 교체)
@@ -434,7 +434,7 @@ copy_file "$PACKAGE_DIR/rules/auto-commit-rules.md" "$TARGET_DIR/rules/auto-comm
 # 실행 권한
 chmod +x "$TARGET_DIR/scripts/notion-worklog.sh"
 chmod +x "$TARGET_DIR/scripts/notion-migrate-worklogs.sh"
-chmod +x "$TARGET_DIR/scripts/update-check.sh"
+chmod +x "$TARGET_DIR/scripts/worklog-update-check.sh"
 chmod +x "$TARGET_DIR/scripts/worklog-write.sh"
 chmod +x "$TARGET_DIR/hooks/worklog.sh"
 chmod +x "$TARGET_DIR/hooks/session-end.sh"
@@ -509,7 +509,7 @@ hook_defs = [
     ('PostToolUse',  f'{target_dir}/hooks/worklog.sh',           5,  True,  None),
     ('PostToolUse',  f'{target_dir}/hooks/on-commit.sh',         5,  False, 'Bash'),
     ('PostToolUse',  f'{target_dir}/hooks/commit-doc-check.sh',  5,  False, None),
-    ('SessionStart', f'{target_dir}/scripts/update-check.sh',    15, True,  None),
+    ('SessionStart', f'{target_dir}/scripts/worklog-update-check.sh',    15, True,  None),
     ('SessionEnd',   f'{target_dir}/hooks/session-end.sh',       15, False, None),
     ('Stop',         f'{target_dir}/hooks/stop.sh',              15, False, None),
 ]

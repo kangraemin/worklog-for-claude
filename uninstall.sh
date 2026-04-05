@@ -55,7 +55,7 @@ WORKLOG_FILES=(
   "scripts/notion-create-db.sh"
   "scripts/token-cost.py"
   "scripts/duration.py"
-  "scripts/update-check.sh"
+  "scripts/worklog-update-check.sh"
   # hooks
   "hooks/post-commit.sh"
   "hooks/worklog.sh"
@@ -132,7 +132,7 @@ except Exception:
 # hooks 제거: worklog 관련 command 패턴
 WORKLOG_MARKERS = [
     'worklog.sh', 'on-commit.sh', 'commit-doc-check.sh',
-    'session-end.sh', 'stop.sh', 'update-check.sh', 'post-commit.sh'
+    'session-end.sh', 'stop.sh', 'worklog-update-check.sh', 'post-commit.sh'
 ]
 
 hooks = cfg.get('hooks', {})

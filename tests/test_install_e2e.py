@@ -1019,7 +1019,7 @@ class TestUninstall(_Base):
                     self.assertNotIn("worklog.sh", cmd)
                     self.assertNotIn("on-commit.sh", cmd)
                     self.assertNotIn("session-end.sh", cmd)
-                    self.assertNotIn("update-check.sh", cmd)
+                    self.assertNotIn("worklog-update-check.sh", cmd)
 
     def test_env_vars_removed(self):
         """WORKLOG_* 등 env 제거"""
@@ -1378,8 +1378,8 @@ class TestWorklogConfigCommand(_Base):
         self.assertEqual(installed_content, source_content)
 
     def test_update_check_includes_worklog_config(self):
-        """update-check.sh FILES 배열에 worklog-config.md 포함"""
-        update_check = os.path.join(PACKAGE_DIR, "scripts", "update-check.sh")
+        """worklog-update-check.sh FILES 배열에 worklog-config.md 포함"""
+        update_check = os.path.join(PACKAGE_DIR, "scripts", "worklog-update-check.sh")
         with open(update_check) as f:
             content = f.read()
         self.assertIn('"commands/worklog-config.md"', content)
@@ -1392,11 +1392,11 @@ class TestWorklogConfigCommand(_Base):
         self.assertTrue(os.path.exists(path), "worklog-config.md lost after reinstall")
 
     def test_install_and_update_check_commands_in_sync(self):
-        """install.sh와 update-check.sh의 commands/ 목록 일치"""
+        """install.sh와 worklog-update-check.sh의 commands/ 목록 일치"""
         import re
 
         install_sh = os.path.join(PACKAGE_DIR, "install.sh")
-        update_sh = os.path.join(PACKAGE_DIR, "scripts", "update-check.sh")
+        update_sh = os.path.join(PACKAGE_DIR, "scripts", "worklog-update-check.sh")
 
         with open(install_sh) as f:
             install_content = f.read()
@@ -1410,7 +1410,7 @@ class TestWorklogConfigCommand(_Base):
         self.assertEqual(
             install_cmds, update_cmds,
             f"install.sh has {install_cmds - update_cmds} extra, "
-            f"update-check.sh has {update_cmds - install_cmds} extra",
+            f"worklog-update-check.sh has {update_cmds - install_cmds} extra",
         )
 
 

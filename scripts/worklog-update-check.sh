@@ -1,6 +1,6 @@
 #!/bin/bash
 # worklog-for-claude 자동 업데이트 체커
-# Usage: update-check.sh [--force] [--check-only]
+# Usage: worklog-update-check.sh [--force] [--check-only]
 #   --force      : 24h throttle 무시하고 즉시 체크
 #   --check-only : 버전 확인만 (업데이트 안 함)
 
@@ -58,7 +58,7 @@ SETTINGS="$HOME/.claude/settings.json"
 _ensure_hook "$SETTINGS" "PostToolUse"  "$AI_WORKLOG_DIR/hooks/worklog.sh"           5  true  ""     || true
 _ensure_hook "$SETTINGS" "PostToolUse"  "$AI_WORKLOG_DIR/hooks/on-commit.sh"         5  false "Bash" || true
 _ensure_hook "$SETTINGS" "PostToolUse"  "$AI_WORKLOG_DIR/hooks/commit-doc-check.sh"  5  false ""     || true
-_ensure_hook "$SETTINGS" "SessionStart" "$AI_WORKLOG_DIR/scripts/update-check.sh"   15  true  ""     || true
+_ensure_hook "$SETTINGS" "SessionStart" "$AI_WORKLOG_DIR/scripts/worklog-update-check.sh"   15  true  ""     || true
 _ensure_hook "$SETTINGS" "SessionEnd"   "$AI_WORKLOG_DIR/hooks/session-end.sh"      15  false ""     || true
 _ensure_hook "$SETTINGS" "Stop"         "$AI_WORKLOG_DIR/hooks/stop.sh"             15  false ""     || true
 
@@ -120,12 +120,12 @@ fi
 
 # ── bootstrap: 자기 자신을 먼저 업데이트 후 재실행 ────────────────────────────
 # 옛날 버전의 FILES 배열이 불완전할 수 있으므로,
-# 새 버전의 update-check.sh로 교체 후 재실행해서 전체 파일을 받는다.
-SELF_SCRIPT="$AI_WORKLOG_DIR/scripts/update-check.sh"
+# 새 버전의 worklog-update-check.sh로 교체 후 재실행해서 전체 파일을 받는다.
+SELF_SCRIPT="$AI_WORKLOG_DIR/scripts/worklog-update-check.sh"
 if [ "${_UPDATE_BOOTSTRAPPED:-}" != "1" ]; then
   SELF_TMP=$(mktemp) || { echo "worklog-for-claude: mktemp failed" >&2; exit 0; }
   trap 'rm -f "$SELF_TMP"' EXIT
-  if curl -sf --max-time 10 "$RAW_BASE/scripts/update-check.sh" -o "$SELF_TMP" 2>/dev/null; then
+  if curl -sf --max-time 10 "$RAW_BASE/scripts/worklog-update-check.sh" -o "$SELF_TMP" 2>/dev/null; then
     # 무결성 검증: 비어있지 않고, 유효한 bash 구문이어야 함
     if [ -s "$SELF_TMP" ] && bash -n "$SELF_TMP" 2>/dev/null; then
       if ! cmp -s "$SELF_TMP" "$SELF_SCRIPT"; then
@@ -152,7 +152,7 @@ FILES=(
   "scripts/notion-migrate-worklogs.sh"
   "scripts/token-cost.py"
   "scripts/duration.py"
-  "scripts/update-check.sh"
+  "scripts/worklog-update-check.sh"
   # hooks
   "hooks/post-commit.sh"
   "hooks/on-commit.sh"
