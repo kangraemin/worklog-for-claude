@@ -73,7 +73,7 @@ When you're deep in a Claude Code session, it's easy to lose track of what you'v
 - **Self-updating** — Automatic version check on `SessionStart`, or manual with `/worklog-update`.
 - **Global or local** — Install once for all projects, or per-repo.
 - **Bulk migration** — Move existing markdown worklogs to Notion with `/worklog-migrate`.
-- **MCP server** — Cross-client support (Claude Code, Cursor, Claude Desktop) with PROJECT.md auto-management.
+- **MCP server** — Cross-client support (Claude Code, Cursor, Claude Desktop).
 
 ---
 
@@ -105,7 +105,7 @@ The interactive wizard walks you through:
 4. **Notion setup** — Token input, database auto-creation (if Notion mode selected)
 5. **Git tracking** — Track `.worklogs/` in git or add to `.gitignore`
 6. **Timing** — Auto on commit or manual only
-7. **MCP setup** — Client selection and PROJECT.md check interval (if `uv` installed)
+7. **MCP setup** — Client selection (if `uv` installed)
 
 That's it. Start committing and worklogs appear automatically.
 
@@ -201,7 +201,6 @@ All settings live in `settings.json` under `env`:
 | `WORKLOG_LANG` | `ko` \| `en` | `ko` | Entry language |
 | `NOTION_DB_ID` | UUID | — | Notion database ID |
 | `AI_WORKLOG_DIR` | path | `~/.claude` | Installation directory (set by installer) |
-| `PROJECT_DOC_CHECK_INTERVAL` | number | `5` | Commits between PROJECT.md update checks (MCP) |
 
 ---
 
@@ -271,8 +270,6 @@ The `mcp/` directory contains a Python MCP server that extends worklog-for-claud
 ### What it adds
 
 - **Worklog** — write and read worklogs via MCP tools
-- **PROJECT.md** — auto-creates and maintains a project documentation file
-- **Gap detection** — compares recent git commits to PROJECT.md and surfaces what's missing
 
 ### Install
 
@@ -291,7 +288,7 @@ Add to your MCP client config:
     "worklog-for-claude": {
       "command": "uvx",
       "args": ["worklog-for-claude"],
-      "env": { "PROJECT_DOC_CHECK_INTERVAL": "5" }
+      "env": {}
     }
   }
 }
@@ -313,7 +310,6 @@ worklog-for-claude/
 │   ├── post-commit.sh      # Git post-commit → worklog generation
 │   ├── worklog.sh          # PostToolUse → tool usage collection
 │   ├── on-commit.sh        # PostToolUse (Bash) → git commit detection
-│   ├── commit-doc-check.sh # PostToolUse → PROJECT.md update check
 │   ├── session-end.sh      # SessionEnd → cleanup
 │   └── stop.sh             # Stop → prompt /worklog (legacy, removed by installer)
 ├── git-hooks/
@@ -345,7 +341,6 @@ worklog-for-claude/
 | Git `post-commit` | `hooks/post-commit.sh` | Generates worklog entry on each commit |
 | `PostToolUse` | `hooks/worklog.sh` | Collects tool usage into per-session JSONL |
 | `PostToolUse` (Bash) | `hooks/on-commit.sh` | Detects `git commit` and requests `/worklog` |
-| `PostToolUse` | `hooks/commit-doc-check.sh` | Checks if PROJECT.md needs updating |
 | `SessionStart` | `scripts/worklog-update-check.sh` | Version check against GitHub (24h throttle) |
 | `SessionEnd` | `hooks/session-end.sh` | Cleans up session collection file |
 
