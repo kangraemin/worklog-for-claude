@@ -956,7 +956,7 @@ HOOK_DEFS = [
     ("PostToolUse",  f"{target_dir}/hooks/worklog.sh",           5,  True,  ""),
     ("PostToolUse",  f"{target_dir}/hooks/on-commit.sh",         5,  False, "Bash"),
     ("PostToolUse",  f"{target_dir}/hooks/commit-doc-check.sh",  5,  False, ""),
-    ("SessionStart", f"{target_dir}/scripts/worklog-update-check.sh",   15,  True,  ""),
+    ("SessionStart", f"{target_dir}/scripts/worklog-update-check.sh",   15,  False, ""),
     ("SessionEnd",   f"{target_dir}/hooks/session-end.sh",      15,  False, ""),
     ("Stop",         f"{target_dir}/hooks/stop.sh",             15,  False, ""),
 ]
@@ -1127,7 +1127,7 @@ class TestEnsureHookRunsWhenThrottled(unittest.TestCase):
                 {"hooks": [{"type": "command", "command": f"{self.target}/hooks/on-commit.sh", "timeout": 5}], "matcher": "Bash"},
                 {"hooks": [{"type": "command", "command": f"{self.target}/hooks/commit-doc-check.sh", "timeout": 5}]},
             ],
-            "SessionStart": [{"hooks": [{"type": "command", "command": f"{self.target}/scripts/worklog-update-check.sh", "timeout": 15, "async": True}]}],
+            "SessionStart": [{"hooks": [{"type": "command", "command": f"{self.target}/scripts/worklog-update-check.sh", "timeout": 15}]}],
             "SessionEnd": [{"hooks": [{"type": "command", "command": f"{self.target}/hooks/session-end.sh", "timeout": 15}]}],
         }}
         with open(settings_path, "w") as f:
@@ -1255,7 +1255,7 @@ class TestProjectMdPrompt(unittest.TestCase):
                 {"hooks": [{"type": "command", "command": f"{self.target}/hooks/on-commit.sh", "timeout": 5}], "matcher": "Bash"},
                 {"hooks": [{"type": "command", "command": f"{self.target}/hooks/commit-doc-check.sh", "timeout": 5}]},
             ],
-            "SessionStart": [{"hooks": [{"type": "command", "command": f"{self.target}/scripts/worklog-update-check.sh", "timeout": 15, "async": True}]}],
+            "SessionStart": [{"hooks": [{"type": "command", "command": f"{self.target}/scripts/worklog-update-check.sh", "timeout": 15}]}],
             "SessionEnd": [{"hooks": [{"type": "command", "command": f"{self.target}/hooks/session-end.sh", "timeout": 15}]}],
         }}
         with open(settings_path, "w") as f:

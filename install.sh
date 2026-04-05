@@ -509,7 +509,7 @@ hook_defs = [
     ('PostToolUse',  f'{target_dir}/hooks/worklog.sh',           5,  True,  None),
     ('PostToolUse',  f'{target_dir}/hooks/on-commit.sh',         5,  False, 'Bash'),
     ('PostToolUse',  f'{target_dir}/hooks/commit-doc-check.sh',  5,  False, None),
-    ('SessionStart', f'{target_dir}/scripts/worklog-update-check.sh',    15, True,  None),
+    ('SessionStart', f'{target_dir}/scripts/worklog-update-check.sh',    15, False, None),
     ('SessionEnd',   f'{target_dir}/hooks/session-end.sh',       15, False, None),
     ('Stop',         f'{target_dir}/hooks/stop.sh',              15, False, None),
 ]

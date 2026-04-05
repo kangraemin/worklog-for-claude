@@ -58,7 +58,7 @@ SETTINGS="$HOME/.claude/settings.json"
 _ensure_hook "$SETTINGS" "PostToolUse"  "$AI_WORKLOG_DIR/hooks/worklog.sh"           5  true  ""     || true
 _ensure_hook "$SETTINGS" "PostToolUse"  "$AI_WORKLOG_DIR/hooks/on-commit.sh"         5  false "Bash" || true
 _ensure_hook "$SETTINGS" "PostToolUse"  "$AI_WORKLOG_DIR/hooks/commit-doc-check.sh"  5  false ""     || true
-_ensure_hook "$SETTINGS" "SessionStart" "$AI_WORKLOG_DIR/scripts/worklog-update-check.sh"   15  true  ""     || true
+_ensure_hook "$SETTINGS" "SessionStart" "$AI_WORKLOG_DIR/scripts/worklog-update-check.sh"   15  false ""     || true
 _ensure_hook "$SETTINGS" "SessionEnd"   "$AI_WORKLOG_DIR/hooks/session-end.sh"      15  false ""     || true
 _ensure_hook "$SETTINGS" "Stop"         "$AI_WORKLOG_DIR/hooks/stop.sh"             15  false ""     || true
 

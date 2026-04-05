@@ -69,7 +69,7 @@ def _default_hooks(target_dir: str) -> dict:
             {"hooks": [{"type": "command", "command": f"{target_dir}/hooks/commit-doc-check.sh", "timeout": 5}]},
         ],
         "SessionStart": [
-            {"hooks": [{"type": "command", "command": f"{target_dir}/scripts/worklog-update-check.sh", "timeout": 15, "async": True}]},
+            {"hooks": [{"type": "command", "command": f"{target_dir}/scripts/worklog-update-check.sh", "timeout": 15}]},
         ],
         "SessionEnd": [
             {"hooks": [{"type": "command", "command": f"{target_dir}/hooks/session-end.sh", "timeout": 15}]},
