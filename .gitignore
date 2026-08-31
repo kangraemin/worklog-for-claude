@@ -40,3 +40,6 @@ update.sh
 update.sh
 uninstall.sh
 # --- ai-bouncer end ---
+
+# ai-bouncer 런타임 상태
+.ai-bouncer/
