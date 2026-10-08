@@ -333,3 +333,38 @@ if __name__ == "__main__":
     result = unittest.main(verbosity=2, exit=False)
     import sys
     sys.exit(0 if result.result.wasSuccessful() else 1)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ai-bouncer 작업 진행 중이면 커밋을 요구하지 않는다
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TestStopDefersToBouncer(_HookBase):
+    """bouncer 가 커밋 시점(finalize)을 정하므로 진행 중엔 block 하지 않는다"""
+
+    def setUp(self):
+        super().setUp()
+        self.repo_abs = os.path.realpath(self.repo)
+        with open(os.path.join(self.repo, "README.md"), "a") as f:
+            f.write("dirty\n")
+        self.stdin = {"cwd": self.repo_abs, "stop_hook_active": False}
+        self.task = os.path.join(self.repo, ".ai-bouncer", "tasks", "t1")
+        os.makedirs(self.task)
+
+    def test_dirty_without_active_blocks(self):
+        r = self._run_stop_hook(self.stdin)
+        self.assertEqual(json.loads(r.stdout)["decision"], "block")
+
+    def test_dirty_with_active_task_passes(self):
+        open(os.path.join(self.task, ".active"), "w").close()
+        r = self._run_stop_hook(self.stdin)
+        self.assertEqual(r.returncode, 0)
+        self.assertEqual(r.stdout.strip(), "")
+
+    def test_active_task_from_subdir(self):
+        open(os.path.join(self.task, ".active"), "w").close()
+        sub = os.path.join(self.repo_abs, "sub")
+        os.makedirs(sub)
+        r = self._run_stop_hook({"cwd": sub, "stop_hook_active": False})
+        self.assertEqual(r.stdout.strip(), "")

@@ -20,6 +20,14 @@ cd "$CWD" 2>/dev/null || exit 0
 # git repo가 아니면 통과
 git rev-parse --is-inside-work-tree &>/dev/null || exit 0
 
+# ai-bouncer 작업이 진행 중이면 커밋 시점은 bouncer 가 정한다 (finalize 단계).
+# 여기서 "커밋해줘"로 막으면 검증 전 커밋을 요구하게 되고, 모델은 매 Stop 마다
+# "아직 커밋할 수 없다"는 답만 반복한다.
+TOP=$(git rev-parse --show-toplevel 2>/dev/null)
+for _a in "$TOP"/.ai-bouncer/tasks/*/.active; do
+  [ -f "$_a" ] && exit 0
+done
+
 # 1) 미커밋 변경사항 확인 (untracked ??, .worklogs/ 제외)
 DIRTY=$(git status --porcelain 2>/dev/null | grep -v '^??' | grep -v ' \.worklogs/' || true)
 
